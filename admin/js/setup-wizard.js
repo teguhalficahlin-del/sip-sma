@@ -253,7 +253,7 @@ async function setupStep2() {
     const section = document.querySelector('.wizard-step[data-step="2"]');
     section.innerHTML = `
         <div class="step-label">Tahap 2 dari ${TOTAL_STEPS}</div>
-        <h3>Program Keahlian</h3>
+        <h3>Jurusan/Peminatan</h3>
         <div id="import-programs-mount"></div>
     `;
 
@@ -456,7 +456,7 @@ async function setupStep11() {
     programsCache = await getPrograms();
     document.getElementById('final-summary').innerHTML = `
         <p><strong>Sekolah:</strong> ${state.schoolName} — Tahun Ajaran ${state.academicYear}, Semester ${state.semester}</p>
-        <p><strong>Program Keahlian:</strong> ${programsCache.length} program</p>
+        <p><strong>Jurusan/Peminatan:</strong> ${programsCache.length} program</p>
         <p><strong>Kelas:</strong> ${classesCache.length} kelas</p>
         <p><strong>Import Kepsek:</strong> <span class="badge ${state.stepDone[4] ? 'badge-success' : 'badge-muted'}">${state.stepDone[4] ? 'Sudah diimpor' : 'Belum/dilewati'}</span></p>
         <p><strong>Import Kaprodi:</strong> <span class="badge ${state.stepDone[5] ? 'badge-success' : 'badge-muted'}">${state.stepDone[5] ? 'Sudah diimpor' : 'Belum/dilewati'}</span></p>

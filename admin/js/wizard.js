@@ -387,7 +387,7 @@ async function renderStep3() {
 
     contentEl.innerHTML = `
         <div class="step-label">Langkah 3 dari ${TOTAL_STEPS}</div>
-        <h3>Program Keahlian</h3>
+        <h3>Jurusan/Peminatan</h3>
         <p class="hint">Unduh template, isi data, lalu unggah. Panduan pengisian ada di sheet PETUNJUK dalam template.</p>
         ${templateButtonHtml(3)}
         <div id="wz-data-list"></div>
@@ -1661,7 +1661,7 @@ async function saveStep3() {
     // Program disimpan real-time per item; di sini cukup validasi count dari DB.
     const programs = await getPrograms();
     if (programs.length === 0) {
-        throw new Error('Tambahkan minimal satu Program Keahlian.');
+        throw new Error('Tambahkan minimal satu Jurusan/Peminatan.');
     }
 }
 
@@ -1761,7 +1761,7 @@ const EXCEL_TEMPLATES = {
              ['', '', ''],
              ['Kolom', 'Wajib?', 'Penjelasan'],
              ['nama_kelas', 'Wajib', 'Nama kelas lengkap. Contoh: X TKJ 1, XI AKL 2. Setiap nama harus berbeda.'],
-             ['kode_program', 'Wajib', 'Kode program keahlian. Contoh: TKJ, AKL. Pastikan kode sudah diinput di langkah Program Keahlian.'],
+             ['kode_program', 'Wajib', 'Kode jurusan/peminatan. Contoh: TKJ, AKL. Pastikan kode sudah diinput di langkah Jurusan/Peminatan.'],
              ['tingkat', 'Wajib', 'Isi angka: 10 untuk kelas X, 11 untuk kelas XI, 12 untuk kelas XII.'],
              ['', '', ''],
              ['PENTING', '', ''],
@@ -1808,7 +1808,7 @@ const EXCEL_TEMPLATES = {
              ['Kolom', 'Wajib?', 'Penjelasan'],
              ['nama', 'Wajib', 'Nama lengkap siswa.'],
              ['nis', 'Wajib', 'Nomor Induk Siswa. Setiap NIS harus berbeda. Jika NIS diawali angka 0, pastikan kolom diformat sebagai Teks di Excel.'],
-             ['kode_program', 'Wajib', 'Kode program keahlian. Contoh: TKJ, AKL. Pastikan kode sudah ada di langkah Program Keahlian.'],
+             ['kode_program', 'Wajib', 'Kode jurusan/peminatan. Contoh: TKJ, AKL. Pastikan kode sudah ada di langkah Jurusan/Peminatan.'],
              ['class_name', 'Wajib', 'Nama kelas. Contoh: X TKJ 1. Pastikan nama kelas sudah ada di langkah Kelas & Rombel.'],
              ['', '', ''],
              ['PENTING', '', ''],
@@ -1849,7 +1849,7 @@ const EXCEL_TEMPLATES = {
                     ['', '', ''],
                     ['Kolom', 'Wajib?', 'Penjelasan'],
                     ['nama_kelas', 'Wajib', 'Nama kelas. Contoh: X TKJ 1. Harus sudah ada di langkah Kelas & Rombel.'],
-                    ['kode_program', 'Wajib', 'Kode program keahlian. Contoh: TKJ. Harus sudah ada di langkah Program Keahlian.'],
+                    ['kode_program', 'Wajib', 'Kode jurusan/peminatan. Contoh: TKJ. Harus sudah ada di langkah Jurusan/Peminatan.'],
                     ['nip_bk', 'Wajib', 'NIP guru BK yang ditugaskan ke kelas ini.'],
                     ['', '', ''],
                     ['PENTING', '', ''],

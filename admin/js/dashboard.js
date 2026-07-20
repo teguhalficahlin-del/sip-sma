@@ -421,7 +421,7 @@ async function renderSetupPanel() {
     const portalUrl = (path) => slug ? `${base}/${path}?school=${slug}` : null;
 
     const items = [
-        { label: 'Program Keahlian',  count: programCount,     panel: 'programs',    portal: null },
+        { label: 'Jurusan/Peminatan',  count: programCount,     panel: 'programs',    portal: null },
         { label: 'Kelas & Rombel',    count: classCount,       panel: 'classes',     portal: null },
         { label: 'Staf & Peran',      count: stafCount,        panel: 'staff',       portal: portalUrl('guru/index.html') },
         { label: 'Siswa Aktif',       count: siswaCount,       panel: 'students',    portal: portalUrl('student/index.html') },
@@ -644,7 +644,7 @@ function alumniClassName(enrollment, gradYear) {
 }
 
 // Render alumni sebagai accordion bersarang 3 level: Tahun Lulus (terbaru di
-// atas) → Program Keahlian → Kelas → tabel. rows: { year, program, kelas, item }.
+// atas) → Jurusan/Peminatan → Kelas → tabel. rows: { year, program, kelas, item }.
 function renderNestedYearProgramClass(rows, headers, rowOf) {
     const byYear = new Map();
     for (const r of rows) {
@@ -701,7 +701,7 @@ function renderNestedYearProgramClass(rows, headers, rowOf) {
 async function renderProgramsPanel() {
     const programs = await getPrograms();
     panelContent.innerHTML = `
-        <h3>Program Keahlian (${programs.length})</h3>
+        <h3>Jurusan/Peminatan (${programs.length})</h3>
         <table class="table">
             <thead><tr><th>Kode</th><th>Nama</th></tr></thead>
             <tbody>${programs.map(p => `<tr><td>${p.code}</td><td>${p.name}</td></tr>`).join('')}</tbody>
@@ -1612,7 +1612,7 @@ async function printAlumniRecap(studentId) {
         <table class="id-tbl">
             <tr><td style="width:180px">Nama</td><td>: <strong>${esc(s.full_name)}</strong></td></tr>
             <tr><td>NIS</td><td>: ${esc(s.nis ?? '—')}</td></tr>
-            <tr><td>Program Keahlian</td><td>: ${esc(s.program?.name ?? '—')}</td></tr>
+            <tr><td>Jurusan/Peminatan</td><td>: ${esc(s.program?.name ?? '—')}</td></tr>
             <tr><td>Kelas Terakhir</td><td>: ${esc(kelas)}</td></tr>
             <tr><td>Tahun Lulus</td><td>: ${esc(s.graduated_academic_year ?? '—')}</td></tr>
         </table>
@@ -2033,7 +2033,7 @@ const EXPORT_DEFS = [
                       .eq('student_status', 'AKTIF')
                       .order('full_name'));
         },
-        headers: ['NIS', 'Nama', 'Program Keahlian'],
+        headers: ['NIS', 'Nama', 'Jurusan/Peminatan'],
         rowOf: s => [s.nis, s.full_name, s.program?.name ?? ''],
     },
     {
@@ -2047,7 +2047,7 @@ const EXPORT_DEFS = [
                       .eq('student_status', 'LULUS')
                       .order('graduated_academic_year', { ascending: false }));
         },
-        headers: ['NIS', 'Nama', 'Tahun Lulus', 'Program Keahlian'],
+        headers: ['NIS', 'Nama', 'Tahun Lulus', 'Jurusan/Peminatan'],
         rowOf: s => [s.nis, s.full_name, s.graduated_academic_year ?? '', s.program?.name ?? ''],
     },
     {
