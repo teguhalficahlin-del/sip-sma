@@ -2190,7 +2190,7 @@ const STEP_LIST = {
         fetch: async () => {
             const data = await fetchAllRows('users',
                 q => q.select('user_id, full_name, login_identifier, teacher_code, role_type, is_bk, is_kepsek, is_waka_kurikulum, is_waka_kesiswaan, wali_kelas_class_id')
-                      .not('role_type', 'in', '("SISWA","ORTU","DUDI","ADMINISTRATIVE")')
+                      .not('role_type', 'in', '("SISWA","ORTU","ADMINISTRATIVE")')
                       .is('deleted_at', null)
                       .order('full_name'));
             return data.map(u => {

@@ -395,7 +395,7 @@ async function renderSetupPanel() {
     ] = await Promise.all([
         supabase.from('programs').select('*', { count: 'exact', head: true }),
         supabase.from('classes').select('*', { count: 'exact', head: true }),
-        supabase.from('users').select('*', { count: 'exact', head: true }).not('role_type', 'in', '("SISWA","ORTU","DUDI","ADMINISTRATIVE","STAKEHOLDER")').is('deleted_at', null),
+        supabase.from('users').select('*', { count: 'exact', head: true }).not('role_type', 'in', '("SISWA","ORTU","ADMINISTRATIVE","STAKEHOLDER")').is('deleted_at', null),
         supabase.from('students').select('*', { count: 'exact', head: true }).eq('student_status', 'AKTIF'),
         supabase.from('students').select('*', { count: 'exact', head: true }).eq('student_status', 'LULUS'),
         supabase.from('users').select('*', { count: 'exact', head: true }).eq('role_type', 'STAKEHOLDER').is('deleted_at', null),
@@ -745,7 +745,7 @@ async function renderStaffPanel() {
     const [users, classRows] = await Promise.all([
         fetchAllRows('users',
             q => q.select('user_id, full_name, login_identifier, teacher_code, role_type, is_bk, is_kepsek, is_waka_kurikulum, is_waka_kesiswaan, wali_kelas_class_id, is_active, must_change_password')
-                  .not('role_type', 'in', '("SISWA","ORTU","DUDI","ADMINISTRATIVE","STAKEHOLDER")')
+                  .not('role_type', 'in', '("SISWA","ORTU","ADMINISTRATIVE","STAKEHOLDER")')
                   .is('deleted_at', null)
                   .order('full_name')),
         fetchAllRows('classes',       q => q.select('class_id, name')),
@@ -2015,7 +2015,7 @@ const EXPORT_DEFS = [
         async fetch() {
             return fetchAllRows('users',
                 q => q.select('full_name, login_identifier, teacher_code, role_type, is_bk, is_kepsek, is_waka_kurikulum, is_waka_kesiswaan, wali_kelas_class_id')
-                      .not('role_type', 'in', '("SISWA","ORTU","DUDI","ADMINISTRATIVE","STAKEHOLDER")')
+                      .not('role_type', 'in', '("SISWA","ORTU","ADMINISTRATIVE","STAKEHOLDER")')
                       .order('full_name'));
         },
         headers: ['Nama', 'NIP/NIK', 'Kode Guru', 'Jabatan'],
