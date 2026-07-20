@@ -2073,11 +2073,11 @@ async function initWakaHumasTab() {
         const stakeholderUrl = portalUrl('stakeholder/index.html');
 
         const [siswaRes, alumniRes, ortuRes, stakeRes, monData] = await Promise.allSettled([
-            supabase.from('students').select('student_id', { count: 'exact', head: true }).eq('student_status', 'AKTIF'),
-            supabase.from('students').select('student_id', { count: 'exact', head: true }).eq('student_status', 'ALUMNI'),
-            supabase.from('users').select('user_id', { count: 'exact', head: true }).eq('role_type', 'ORTU').eq('is_active', true),
-            supabase.from('users').select('user_id', { count: 'exact', head: true }).eq('role_type', 'STAKEHOLDER').eq('is_active', true),
-            getKepsekMonitoring('7_hari'),
+            supabase.from('students').select('*', { count: 'exact', head: true }).eq('student_status', 'AKTIF'),
+            supabase.from('students').select('*', { count: 'exact', head: true }).eq('student_status', 'ALUMNI'),
+            supabase.from('users').select('*', { count: 'exact', head: true }).eq('role_type', 'ORTU').eq('is_active', true),
+            supabase.from('users').select('*', { count: 'exact', head: true }).eq('role_type', 'STAKEHOLDER').eq('is_active', true),
+            getAttendanceFillRate(null, null),
         ]);
 
         const siswaCount = siswaRes.status  === 'fulfilled' ? (siswaRes.value.count  ?? 0) : '—';
@@ -2085,9 +2085,10 @@ async function initWakaHumasTab() {
         const ortuCount  = ortuRes.status   === 'fulfilled' ? (ortuRes.value.count   ?? 0) : '—';
         const stakeCount = stakeRes.status  === 'fulfilled' ? (stakeRes.value.count  ?? 0) : '—';
 
-        const s        = monData.status === 'fulfilled' ? (monData.value?.summary ?? {}) : {};
-        const pctSiswa = s.pct_siswa != null ? s.pct_siswa + '%' : '—';
-        const pctGuru  = s.pct_guru  != null ? s.pct_guru  + '%' : '—';
+        const att      = monData.status === 'fulfilled' ? (monData.value ?? {}) : {};
+        const total    = att.total ?? 0;
+        const pctGuru  = total > 0 ? Math.round((att.hadir ?? 0) / total * 100) + '%' : '—';
+        const pctSiswa = total > 0 ? Math.round((att.pending ?? 0) / total * 100) + '%' : '—';
 
         const cardStyle = 'background:var(--color-surface);border:1px solid var(--color-border);border-radius:12px;padding:16px;text-align:center';
         const lbl = 'font-size:12px;color:var(--color-text-muted);margin-top:4px';
@@ -2122,12 +2123,12 @@ async function initWakaHumasTab() {
                 <h3 style="margin:0 0 12px">Kehadiran 7 Hari Terakhir</h3>
                 <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px">
                     <div style="${cardStyle}">
-                        <div style="font-size:24px;font-weight:600;color:var(--color-success,#22c55e)">${esc(pctSiswa)}</div>
-                        <div style="${lbl}">Kehadiran Siswa</div>
+                        <div style="font-size:24px;font-weight:600;color:var(--color-success,#22c55e)">${esc(pctGuru)}</div>
+                        <div style="${lbl}">Sesi Hadir (%)</div>
                     </div>
                     <div style="${cardStyle}">
-                        <div style="font-size:24px;font-weight:600;color:var(--color-primary)">${esc(pctGuru)}</div>
-                        <div style="${lbl}">Kehadiran Guru di Kelas</div>
+                        <div style="font-size:24px;font-weight:600;color:var(--color-primary)">${esc(pctSiswa)}</div>
+                        <div style="${lbl}">Sesi Pending (%)</div>
                     </div>
                 </div>
             </div>
