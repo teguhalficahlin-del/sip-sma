@@ -165,6 +165,7 @@ function syncFooter() {
 }
 
 async function goToStep(n) {
+    if (SKIPPED_STEPS.has(n)) return goToStep(nextValidStep(n));
     if (n < 1 || n > TOTAL_STEPS) return;
     clearError();
     state.currentStep = n;
@@ -1724,6 +1725,7 @@ document.getElementById('wizard-steps').addEventListener('click', async (e) => {
     if (!item) return;
     const step = Number(item.dataset.step);
     if (!state.completedSteps.has(step)) return;
+    if (SKIPPED_STEPS.has(step)) return;
     await goToStep(step);
 });
 
