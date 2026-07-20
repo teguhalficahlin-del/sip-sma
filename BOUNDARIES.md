@@ -1,12 +1,12 @@
 # Batas Kerja SIP SMA
 
 ## Repo ini (AKTIF)
-- Nama: student-insight-platform-sma
+- Nama: sip-sma
 - Path lokal: D:\ribuan_pengguna\CLAUDE\SIP SMA
 - Tujuan: SIP untuk SMA
 
 ## Repo SMK (LOCKED)
-- Nama: student-insight-platform
+- Nama: sip-sma
 - Path lokal: D:\ribuan_pengguna\CLAUDE\SIP SMK
 - Status: TIDAK BOLEH DISENTUH
 
