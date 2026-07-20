@@ -1,4 +1,4 @@
-const SUPABASE_URL = 'https://xovvuuwexoweoqyltepq.supabase.co';
+const SUPABASE_URL = 'https://dfugplddogrbzrwxifdf.supabase.co';
 
 document.getElementById('login-form').addEventListener('submit', async (e) => {
     e.preventDefault();

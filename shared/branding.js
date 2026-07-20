@@ -9,8 +9,8 @@
  *   2. Subdomain  smkhr.domain.com  (jika bagian host ≥ 3 segmen)
  */
 
-const SUPABASE_URL  = 'https://xovvuuwexoweoqyltepq.supabase.co';
-const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhvdnZ1dXdleG93ZW9xeWx0ZXBxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIyMDk0NzUsImV4cCI6MjA5Nzc4NTQ3NX0.mFwmVfSqYM7ITURtLC143BsurK6Yr31WFViJe5PFGN8';
+const SUPABASE_URL  = 'https://dfugplddogrbzrwxifdf.supabase.co';
+const SUPABASE_ANON = 'sb_publishable_A5QPhZVwzmAQKGtKB49sHQ_loIkEug-';
 
 function getSlugFromURL() {
     const param = new URLSearchParams(window.location.search).get('school');

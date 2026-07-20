@@ -13,13 +13,13 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-const SUPABASE_URL      = 'https://xovvuuwexoweoqyltepq.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhvdnZ1dXdleG93ZW9xeWx0ZXBxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIyMDk0NzUsImV4cCI6MjA5Nzc4NTQ3NX0.mFwmVfSqYM7ITURtLC143BsurK6Yr31WFViJe5PFGN8';
+const SUPABASE_URL      = 'https://dfugplddogrbzrwxifdf.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_A5QPhZVwzmAQKGtKB49sHQ_loIkEug-';
 export { SUPABASE_URL };
 
 // Migrasi sesi dari localStorage ke sessionStorage (satu kali pasca deploy)
 try {
-    const _mk = 'sb-xovvuuwexoweoqyltepq-auth-token';
+    const _mk = 'sb-dfugplddogrbzrwxifdf-auth-token';
     const _lv = localStorage.getItem(_mk);
     if (_lv && !sessionStorage.getItem(_mk)) { sessionStorage.setItem(_mk, _lv); localStorage.removeItem(_mk); }
 } catch { /* private mode */ }
