@@ -8,6 +8,9 @@ Thumbs.db
 file uji/
 Ringkasan percakapan.md
 
+# Private credentials (never commit)
+docs/setup-credentials-KEEP-PRIVATE.md
+
 # SQL backups
 backup_*.sql
 *.sql.bak
