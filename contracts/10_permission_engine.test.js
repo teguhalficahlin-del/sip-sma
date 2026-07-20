@@ -14,8 +14,8 @@
 
 const ROLE_TYPE = {
     GURU: 'GURU', BK: 'BK', WALI_KELAS: 'WALI_KELAS',
-    KAPRODI: 'KAPRODI', KEPSEK: 'KEPSEK',
-    DUDI: 'DUDI', SISWA: 'SISWA', ORTU: 'ORTU',
+    KEPSEK: 'KEPSEK', WAKA_KESISWAAN: 'WAKA_KESISWAAN',
+    SISWA: 'SISWA', ORTU: 'ORTU',
 };
 const CASE_STATUS = {
     OPEN: 'OPEN', UNDER_REVIEW: 'UNDER_REVIEW',
@@ -26,8 +26,7 @@ const VISIBILITY_LEVEL = {
 };
 // Chain = PENUNTUN advisory (bukan penegakan) sejak mig 20260703250000.
 const ESCALATION_CHAIN = {
-    SEKOLAH: ['GURU', 'BK', 'WALI_KELAS', 'KAPRODI', 'WAKA_KESISWAAN', 'KEPSEK'],
-    PKL:     ['DUDI', 'KAPRODI', 'WAKA_KESISWAAN', 'KEPSEK'],
+    SEKOLAH: ['GURU', 'BK', 'WALI_KELAS', 'WAKA_KESISWAAN', 'KEPSEK'],
 };
 
 // ─── Inline the engine (copy logic for standalone test) ───────────────
@@ -40,7 +39,6 @@ function caseIsOpen(c) { return c.status !== CASE_STATUS.CLOSED; }
 function isCurrentHandler(u, c) { return c.current_handler_role === u.role_type; }
 function hasEverBeenInvolved(u, c) { return Array.isArray(c.involved_user_ids) && c.involved_user_ids.includes(u.user_id); }
 function hasAssignmentForStudent(u, s, a) { return Array.isArray(a) && s?.class_id && a.some(x => x.class_id === s.class_id); }
-function dudiSupervisesStudent(u, s) { return u.role_type === 'DUDI' && s?.pkl_dudi_user_id === u.user_id; }
 function isWaliKelasForStudent(u, s) { return u.wali_kelas_class_id !== null && u.wali_kelas_class_id === s?.class_id; }
 function hasValidSubstituteToken(u, sc) {
     if (!sc || sc.substitute_user_id !== u.user_id || !sc.substitute_token_expires_at) return false;
@@ -59,23 +57,22 @@ function checkCaseView(u, c, s, a) {
     if (c.status === CASE_STATUS.CLOSED) {
         if (role === 'SISWA' && c.student_id === s?.student_id) return allow();
     }
-    if (['BK','WALI_KELAS','KAPRODI','KEPSEK'].includes(role)) return allow();
+    if (['BK','WALI_KELAS','KEPSEK'].includes(role)) return allow();
     if (role === 'GURU') {
         if (hasEverBeenInvolved(u, c)) return allow();
         if (hasAssignmentForStudent(u, s, a)) return allow();
         return deny('Guru no access', 'GURU_NO_ACCESS');
     }
-    if (role === 'DUDI') return dudiSupervisesStudent(u, s) ? allow() : deny('DUDI not supervisor', 'DUDI_NOT_SUPERVISOR');
     if (role === 'SISWA') return c.student_id === s?.student_id ? allow() : deny('Not owner', 'STUDENT_NOT_OWNER');
     if (role === 'ORTU') return deny('Blocked', 'ORTU_BLOCKED');
     return deny('Unknown', 'UNKNOWN_ROLE');
 }
 function checkCaseCreate(u) {
-    return ['GURU','KEPSEK','DUDI'].includes(u.role_type) ? allow() : deny('Cannot create', 'ROLE_CANNOT_CREATE_CASE');
+    return ['GURU','KEPSEK'].includes(u.role_type) ? allow() : deny('Cannot create', 'ROLE_CANNOT_CREATE_CASE');
 }
 function checkCaseAddComment(u, c) {
     if (!caseIsOpen(c)) return deny('Closed', 'CASE_CLOSED');
-    if (!['GURU','BK','WALI_KELAS','KAPRODI','KEPSEK','DUDI'].includes(u.role_type))
+    if (!['GURU','BK','WALI_KELAS','KEPSEK'].includes(u.role_type))
         return deny('Role cannot comment', 'ROLE_CANNOT_COMMENT');
     if (!isCurrentHandler(u, c)) return deny('Not handler', 'NOT_CURRENT_HANDLER');
     return allow();
@@ -120,7 +117,7 @@ function checkAttendanceSubmit(u, sc) {
     return deny('Not assigned', 'NOT_ASSIGNED_TEACHER');
 }
 function checkAchievementCreate(u, s) {
-    if (['KAPRODI','KEPSEK'].includes(u.role_type)) return allow();
+    if (u.role_type === 'KEPSEK') return allow();
     if (u.role_type === 'WALI_KELAS') {
         return isWaliKelasForStudent(u, s) ? allow() : deny('Wrong class', 'WALI_KELAS_WRONG_CLASS');
     }
@@ -172,7 +169,6 @@ const ID = {
     class2:  'dddddddd-dddd-dddd-dddd-dddddddddddd',
     case:    'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
     schedule:'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee',
-    dudi:    'ffffffff-ffff-ffff-ffff-ffffffffffff',
 };
 
 function makeUser(role, overrides = {}) {
@@ -194,7 +190,7 @@ function makeCase(overrides = {}) {
 }
 
 function makeStudent(overrides = {}) {
-    return { student_id: ID.student, student_status: 'AKTIF', class_id: ID.class, pkl_dudi_user_id: null, ...overrides };
+    return { student_id: ID.student, student_status: 'AKTIF', class_id: ID.class, ...overrides };
 }
 
 function makeSchedule(overrides = {}) {
@@ -274,21 +270,10 @@ test('BK can escalate to WALI_KELAS', () => {
     expect(r.allowed).toBeTrue();
 });
 
-test('KAPRODI cannot escalate (end of SEKOLAH chain before KEPSEK who uses FINAL_DECISION)', () => {
-    // KAPRODI is index 3, KEPSEK is index 4 — next step exists
-    const r = checkCaseEscalate(makeUser('KAPRODI'), makeCase({ current_handler_role: 'KAPRODI', track: 'SEKOLAH' }));
-    expect(r.allowed).toBeTrue();
-});
-
 test('KEPSEK cannot use ESCALATE — must use FINAL_DECISION_MADE', () => {
     const r = checkCaseEscalate(makeUser('KEPSEK'), makeCase({ current_handler_role: 'KEPSEK' }));
     expect(r.allowed).toBeFalse();
     expect(r.code).toBe('KEPSEK_USES_FINAL_DECISION');
-});
-
-test('PKL track: DUDI can escalate to KAPRODI', () => {
-    const r = checkCaseEscalate(makeUser('DUDI'), makeCase({ current_handler_role: 'DUDI', track: 'PKL' }));
-    expect(r.allowed).toBeTrue();
 });
 
 test('Non-handler cannot escalate (GURU tries while BK is handler)', () => {
@@ -314,16 +299,6 @@ test('BK cannot comment when GURU is handler', () => {
 
 test('WALI_KELAS as current handler can close case', () => {
     const r = checkCaseClose(makeUser('WALI_KELAS'), makeCase({ current_handler_role: 'WALI_KELAS' }));
-    expect(r.allowed).toBeTrue();
-});
-
-test('DUDI as current handler (PKL track) can add student update', () => {
-    const c = makeCase({ current_handler_role: 'DUDI', track: 'PKL' });
-    const r = (() => {
-        if (!caseIsOpen(c)) return deny('Closed', 'CASE_CLOSED');
-        if (!isCurrentHandler(makeUser('DUDI'), c)) return deny('Not handler', 'NOT_CURRENT_HANDLER');
-        return allow();
-    })();
     expect(r.allowed).toBeTrue();
 });
 
@@ -391,19 +366,6 @@ test('GURU previously involved can view case (even without current assignment)',
     expect(r.allowed).toBeTrue();
 });
 
-test('DUDI can view case for their PKL student', () => {
-    const s = makeStudent({ pkl_dudi_user_id: ID.dudi, student_status: 'PKL' });
-    const r = checkCaseView(makeUser('DUDI', { user_id: ID.dudi }), makeCase(), s, []);
-    expect(r.allowed).toBeTrue();
-});
-
-test('DUDI cannot view case for student not in their PKL batch', () => {
-    const s = makeStudent({ pkl_dudi_user_id: ID.user2, student_status: 'PKL' });
-    const r = checkCaseView(makeUser('DUDI', { user_id: ID.dudi }), makeCase(), s, []);
-    expect(r.allowed).toBeFalse();
-    expect(r.code).toBe('DUDI_NOT_SUPERVISOR');
-});
-
 test('ORTU cannot view any case', () => {
     const r = checkCaseView(makeUser('ORTU'), makeCase(), makeStudent(), []);
     expect(r.allowed).toBeFalse();
@@ -428,7 +390,6 @@ console.log('\n▸ Case create permissions');
 
 test('GURU can create case', () => expect(checkCaseCreate(makeUser('GURU')).allowed).toBeTrue());
 test('KEPSEK can create case', () => expect(checkCaseCreate(makeUser('KEPSEK')).allowed).toBeTrue());
-test('DUDI can create case', () => expect(checkCaseCreate(makeUser('DUDI')).allowed).toBeTrue());
 test('BK cannot create case', () => expect(checkCaseCreate(makeUser('BK')).allowed).toBeFalse());
 test('WALI_KELAS cannot create case', () => expect(checkCaseCreate(makeUser('WALI_KELAS')).allowed).toBeFalse());
 test('SISWA cannot create case', () => expect(checkCaseCreate(makeUser('SISWA')).allowed).toBeFalse());
@@ -494,11 +455,6 @@ test('WALI_KELAS for different class cannot create achievement', () => {
     expect(r.code).toBe('WALI_KELAS_WRONG_CLASS');
 });
 
-test('KAPRODI can create achievement for any student', () => {
-    const r = checkAchievementCreate(makeUser('KAPRODI'), makeStudent());
-    expect(r.allowed).toBeTrue();
-});
-
 test('GURU cannot create achievement', () => {
     const r = checkAchievementCreate(makeUser('GURU'), makeStudent());
     expect(r.allowed).toBeFalse();
@@ -512,23 +468,14 @@ console.log('\n▸ Escalation chain boundaries');
 test('nextEscalationStep: GURU → BK (SEKOLAH)', () => {
     expect(nextEscalationStep('SEKOLAH', 'GURU')).toBe('BK');
 });
-test('nextEscalationStep: KAPRODI → WAKA_KESISWAAN (SEKOLAH)', () => {
-    expect(nextEscalationStep('SEKOLAH', 'KAPRODI')).toBe('WAKA_KESISWAAN');
+test('nextEscalationStep: WALI_KELAS → WAKA_KESISWAAN (SEKOLAH)', () => {
+    expect(nextEscalationStep('SEKOLAH', 'WALI_KELAS')).toBe('WAKA_KESISWAAN');
 });
 test('nextEscalationStep: WAKA_KESISWAAN → KEPSEK (SEKOLAH)', () => {
     expect(nextEscalationStep('SEKOLAH', 'WAKA_KESISWAAN')).toBe('KEPSEK');
 });
 test('nextEscalationStep: KEPSEK → null (end of chain)', () => {
     expect(nextEscalationStep('SEKOLAH', 'KEPSEK')).toBe(null);
-});
-test('nextEscalationStep: DUDI → KAPRODI (PKL)', () => {
-    expect(nextEscalationStep('PKL', 'DUDI')).toBe('KAPRODI');
-});
-test('nextEscalationStep: KAPRODI → WAKA_KESISWAAN (PKL)', () => {
-    expect(nextEscalationStep('PKL', 'KAPRODI')).toBe('WAKA_KESISWAAN');
-});
-test('nextEscalationStep: role not in chain returns null', () => {
-    expect(nextEscalationStep('SEKOLAH', 'DUDI')).toBe(null);
 });
 test('nextEscalationStep: unknown track returns null', () => {
     expect(nextEscalationStep('UNKNOWN', 'GURU')).toBe(null);

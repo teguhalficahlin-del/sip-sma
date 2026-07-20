@@ -38,11 +38,8 @@ export const ROLE_TYPE = Object.freeze({
     GURU:           'GURU',
     BK:             'BK',
     WALI_KELAS:     'WALI_KELAS',
-    KAPRODI:        'KAPRODI',
     KEPSEK:         'KEPSEK',
     WAKA_KESISWAAN: 'WAKA_KESISWAAN',
-    WAKA_HUMAS:     'WAKA_HUMAS',
-    DUDI:           'DUDI',
     SISWA:          'SISWA',
     ORTU:           'ORTU',
     ADMINISTRATIVE: 'ADMINISTRATIVE',
@@ -58,7 +55,6 @@ export const CASE_STATUS = Object.freeze({
 
 export const CASE_TRACK = Object.freeze({
     SEKOLAH: 'SEKOLAH',
-    PKL:     'PKL',
 });
 
 export const VISIBILITY_LEVEL = Object.freeze({
@@ -122,17 +118,15 @@ export const OBSERVATION_DIMENSION = Object.freeze({
 // Escalation chains — PENUNTUN (advisory) untuk urutan yang DIHARAPKAN, bukan
 // gembok. Sejak desain kasus Langkah A (mig 20260703250000) eskalasi antar-
 // aktor-internal BEBAS (arah mana pun, boleh lompat). Server hanya mengunci:
-//   (a) target wajib salah satu 6 peran internal kasus (bukan SISWA/ORTU/dst),
-//   (b) DUDI hanya boleh -> KAPRODI.
+//   (a) target wajib salah satu 5 peran internal kasus (bukan SISWA/ORTU/dst).
 // TN-05 lama ("maju tepat satu langkah") SUDAH DIBATALKAN.
 export const ESCALATION_CHAIN = Object.freeze({
-    SEKOLAH: ['GURU', 'BK', 'WALI_KELAS', 'KAPRODI', 'WAKA_KESISWAAN', 'KEPSEK'],
-    PKL:     ['DUDI', 'KAPRODI', 'WAKA_KESISWAAN', 'KEPSEK'],
+    SEKOLAH: ['GURU', 'BK', 'WALI_KELAS', 'WAKA_KESISWAAN', 'KEPSEK'],
 });
 
-// Peran internal yang boleh menjadi PENANGAN/target eskalasi kasus (6 peran).
+// Peran internal yang boleh menjadi PENANGAN/target eskalasi kasus (5 peran).
 export const INTERNAL_CASE_ROLES = Object.freeze(
-    ['GURU', 'BK', 'WALI_KELAS', 'KAPRODI', 'WAKA_KESISWAAN', 'KEPSEK']
+    ['GURU', 'BK', 'WALI_KELAS', 'WAKA_KESISWAAN', 'KEPSEK']
 );
 
 
@@ -214,7 +208,7 @@ export const CASE_EVENT_SCHEMAS = Object.freeze({
     // Privacy default: INTERNAL_SCHOOL
     COMMENT_ADDED: {
         privacyDefault: VISIBILITY_LEVEL.INTERNAL_SCHOOL,
-        allowedRoles: ['GURU', 'BK', 'WALI_KELAS', 'KAPRODI', 'KEPSEK', 'DUDI'],
+        allowedRoles: ['GURU', 'BK', 'WALI_KELAS', 'KEPSEK'],
         requiresCurrentHandler: true,
         lockBlocks: true,
         requiredPayloadFields: [
@@ -230,7 +224,7 @@ export const CASE_EVENT_SCHEMAS = Object.freeze({
     // new_status must differ from current case status (validated in buildCaseEventEnvelope)
     STATUS_CHANGED: {
         privacyDefault: VISIBILITY_LEVEL.INTERNAL_SCHOOL,
-        allowedRoles: ['GURU', 'BK', 'WALI_KELAS', 'KAPRODI', 'KEPSEK', 'DUDI'],
+        allowedRoles: ['GURU', 'BK', 'WALI_KELAS', 'KEPSEK'],
         requiresCurrentHandler: true,
         lockBlocks: false,
         requiredPayloadFields: [
@@ -249,7 +243,7 @@ export const CASE_EVENT_SCHEMAS = Object.freeze({
     // TN-05: new_handler_role must be next step in ESCALATION_CHAIN
     DECISION_ESCALATE: {
         privacyDefault: VISIBILITY_LEVEL.INTERNAL_SCHOOL,
-        allowedRoles: ['GURU', 'BK', 'WALI_KELAS', 'KAPRODI', 'DUDI'],
+        allowedRoles: ['GURU', 'BK', 'WALI_KELAS', 'WAKA_KESISWAAN'],
         requiresCurrentHandler: true,
         lockBlocks: false,
         requiredPayloadFields: [
@@ -269,7 +263,7 @@ export const CASE_EVENT_SCHEMAS = Object.freeze({
     // After this event: case.status → CLOSED (via trigger)
     DECISION_CLOSE: {
         privacyDefault: VISIBILITY_LEVEL.INTERNAL_SCHOOL,
-        allowedRoles: ['GURU', 'BK', 'WALI_KELAS', 'KAPRODI', 'KEPSEK', 'DUDI'],
+        allowedRoles: ['GURU', 'BK', 'WALI_KELAS', 'KEPSEK'],
         requiresCurrentHandler: true,
         lockBlocks: false,
         requiredPayloadFields: [
@@ -306,7 +300,7 @@ export const CASE_EVENT_SCHEMAS = Object.freeze({
     // Also creates a row in student_updates table (same transaction)
     STUDENT_UPDATE_ADDED: {
         privacyDefault: VISIBILITY_LEVEL.STUDENT_VISIBLE,
-        allowedRoles: ['GURU', 'BK', 'WALI_KELAS', 'KAPRODI', 'KEPSEK', 'DUDI'],
+        allowedRoles: ['GURU', 'BK', 'WALI_KELAS', 'KEPSEK'],
         requiresCurrentHandler: true,
         lockBlocks: false,
         requiredPayloadFields: [
@@ -342,7 +336,7 @@ export const CASE_EVENT_SCHEMAS = Object.freeze({
     // System event: recorded when staff links an existing parent_message to a case.
     PARENT_MESSAGE_LINKED: {
         privacyDefault: VISIBILITY_LEVEL.INTERNAL_SCHOOL,
-        allowedRoles: ['GURU', 'BK', 'WALI_KELAS', 'KAPRODI', 'KEPSEK'],
+        allowedRoles: ['GURU', 'BK', 'WALI_KELAS', 'KEPSEK'],
         requiresCurrentHandler: false,
         lockBlocks: false,
         requiredPayloadFields: [
@@ -359,7 +353,7 @@ export const CASE_EVENT_SCHEMAS = Object.freeze({
     // Also creates an OUTBOUND parent_message row (same transaction).
     PARENT_REPLY_SENT: {
         privacyDefault: VISIBILITY_LEVEL.INTERNAL_SCHOOL,
-        allowedRoles: ['GURU', 'BK', 'WALI_KELAS', 'KAPRODI', 'KEPSEK'],
+        allowedRoles: ['GURU', 'BK', 'WALI_KELAS', 'KEPSEK'],
         requiresCurrentHandler: false,
         lockBlocks: false,
         requiredPayloadFields: [
@@ -376,7 +370,7 @@ export const CASE_EVENT_SCHEMAS = Object.freeze({
     // After this event: case.is_locked → true (via trigger TN-04)
     CASE_LOCKED: {
         privacyDefault: VISIBILITY_LEVEL.INTERNAL_SCHOOL,
-        allowedRoles: ['GURU', 'BK', 'WALI_KELAS', 'KAPRODI', 'KEPSEK', 'DUDI'],
+        allowedRoles: ['GURU', 'BK', 'WALI_KELAS', 'KEPSEK'],
         requiresCurrentHandler: true,
         lockBlocks: false,
         requiredPayloadFields: [
@@ -391,7 +385,7 @@ export const CASE_EVENT_SCHEMAS = Object.freeze({
     // After this event: case.is_locked → false (via trigger TN-04)
     CASE_UNLOCKED: {
         privacyDefault: VISIBILITY_LEVEL.INTERNAL_SCHOOL,
-        allowedRoles: ['GURU', 'BK', 'WALI_KELAS', 'KAPRODI', 'KEPSEK', 'DUDI'],
+        allowedRoles: ['GURU', 'BK', 'WALI_KELAS', 'KEPSEK'],
         requiresCurrentHandler: true,
         lockBlocks: false,
         requiredPayloadFields: [
@@ -691,7 +685,7 @@ export function buildCaseEventEnvelope({
     //    Yang divalidasi hanya BATAS, bukan urutan rantai (TN-05 dibatalkan):
     //      - INV-2: new_handler_role != previous_handler_role
     //      - target wajib salah satu 6 peran internal kasus (INTERNAL_CASE_ROLES)
-    //    Kunci DUDI->KAPRODI ditegakkan server (trigger trg_case_validate_escalate)
+    //    Batas target ditegakkan server (trigger trg_case_validate_escalate)
     //    karena butuh peran author; tak selalu tersedia di validator klien ini.
     if (event_type === CASE_EVENT_TYPES.DECISION_ESCALATE && !errors.length) {
         const { previous_handler_role, new_handler_role } = envelope_extra;

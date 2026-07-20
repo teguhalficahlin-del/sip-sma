@@ -147,7 +147,7 @@ function downloadCsvTemplate(filename, columns, exampleRows) {
 
 function renderResult(resultArea, result) {
     const { total = 0, success = 0, failed = 0, errors = [], conflicts = [] } = result;
-    // Akun baru: bulk-import-users → result.imported, bulk-import-dudi/parents → result.created,
+    // Akun baru: bulk-import-users → result.imported, bulk-import-parents → result.created,
     // provision-student-accounts → result.created_accounts
     const newAccounts = result.imported ?? result.created ?? result.created_accounts ?? [];
 

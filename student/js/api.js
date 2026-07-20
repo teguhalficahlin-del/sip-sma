@@ -27,8 +27,8 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
 export const STUDENT_ROLES = ['SISWA'];
 
 // Status siswa yang masih boleh mengakses Portal Siswa.
-// LULUS (alumni) & KELUAR (mutasi) diblokir; PKL tetap aktif (sedang magang).
-export const ACTIVE_STUDENT_STATUSES = ['AKTIF', 'PKL'];
+// LULUS (alumni) & KELUAR (mutasi) diblokir.
+export const ACTIVE_STUDENT_STATUSES = ['AKTIF'];
 
 export async function loginWithIdentifier(identifier, password, schoolId = null) {
     const { data: email, error: resolveErr } = await supabase
@@ -228,39 +228,6 @@ export async function getMyObservations(studentId, dateStart = null, dateEnd = n
     if (dateStart) query = query.gte('observed_at', dateStart);
     if (dateEnd)   query = query.lte('observed_at', dateEnd + 'T23:59:59');
     const { data, error } = await query;
-    if (error) throw error;
-    return data ?? [];
-}
-
-/**
- * Penempatan PKL aktif siswa (jika ada).
- * RLS: butuh kebijakan SISWA read pkl_placements (migrasi yang sama).
- */
-export async function getMyPklPlacement(studentId) {
-    const { data, error } = await supabase
-        .from('pkl_placements')
-        .select(`
-            placement_id, start_date, end_date, is_active,
-            dudi:users!pkl_placements_dudi_user_id_fkey ( full_name, dudi_org_name )
-        `)
-        .eq('student_id', studentId)
-        .order('is_active', { ascending: false })
-        .order('start_date', { ascending: false });
-    if (error) throw error;
-    const list = data ?? [];
-    return list.find(p => p.is_active) ?? list[0] ?? null;
-}
-
-/**
- * Rekap absensi PKL siswa.
- * RLS: butuh kebijakan SISWA read pkl_attendance (migrasi yang sama).
- */
-export async function getMyPklAttendance(studentId) {
-    const { data, error } = await supabase
-        .from('pkl_attendance')
-        .select('attendance_date, status, notes')
-        .eq('student_id', studentId)
-        .order('attendance_date', { ascending: false });
     if (error) throw error;
     return data ?? [];
 }

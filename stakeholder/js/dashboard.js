@@ -51,7 +51,6 @@ async function loadSummary() {
     try {
         const s = await getStakeholderSummary();
         document.getElementById('st-siswa').textContent          = fmtNum(s.total_siswa);
-        document.getElementById('st-pkl').textContent            = fmtNum(s.total_pkl);
         document.getElementById('st-staf').textContent           = fmtNum(s.total_staf);
         document.getElementById('st-program').textContent        = fmtNum(s.total_program);
         document.getElementById('st-kelas').textContent          = fmtNum(s.total_kelas);

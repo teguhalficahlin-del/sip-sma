@@ -23,7 +23,7 @@ import {
     getCurrentUserRow, requireAdministrativeOrRedirect,
     getSchoolConfig, upsertSchoolConfig, markSetupCompleted,
     getPrograms, getClasses, addClass,
-    importPrograms, importClasses, importUsers, importStudents, importParents, importDudi,
+    importPrograms, importClasses, importUsers, importStudents, importParents,
 } from './api.js';
 import { mountCsvImporter } from './import.js';
 
@@ -136,7 +136,7 @@ async function validateCurrentStep() {
         case 2:
             return programsCache.length > 0
                 ? null
-                : 'Upload file CSV program keahlian dan klik "Impor Data" terlebih dahulu';
+                : 'Upload file CSV program dan klik "Impor Data" terlebih dahulu';
         case 3:
             return classesCache.length > 0 ? null : 'Tambahkan minimal satu kelas';
         case 4:  // Kepsek — optional
@@ -149,7 +149,7 @@ async function validateCurrentStep() {
                 : 'Tambahkan minimal satu guru sebelum lanjut';
         case 8:  // BK — optional
         case 9:  // Siswa + Orang Tua — optional, dapat dilanjutkan dari dashboard
-        case 10: // DUDI — optional
+        case 10: // optional
             return null;
         case 11:
             return null;
@@ -268,15 +268,6 @@ async function setupStep2() {
                 saveState(state);
             }
         },
-        template: {
-            filename: 'template_program_keahlian.csv',
-            columns: ['kode', 'nama'],
-            exampleRows: [
-                ['TKJ', 'Teknik Komputer dan Jaringan'],
-                ['RPL', 'Rekayasa Perangkat Lunak'],
-                ['MM',  'Multimedia'],
-            ],
-        },
     });
     container.insertAdjacentHTML('afterbegin', alreadyImportedBanner(2));
 }
@@ -366,19 +357,7 @@ function setupStep4() {
 }
 
 function setupStep5() {
-    mountRoleImporter({
-        mountId: 'import-kaprodi-mount',
-        stepNumber: 5,
-        roleType: 'KAPRODI',
-        columns: ['nama', 'nip_atau_nik', 'kode_program'],
-        template: {
-            filename: 'template_kaprodi.csv',
-            columns: ['nama', 'nip_atau_nik', 'kode_program'],
-            exampleRows: [
-                ['Sari Dewi', '197501012001012001', 'TKJ'],
-            ],
-        },
-    });
+    // Kaprodi step dihapus — step ini tidak lagi digunakan
 }
 
 function setupStep6() {
@@ -469,21 +448,7 @@ function setupStep9() {
 }
 
 function setupStep10() {
-    const container = document.getElementById('import-dudi-mount');
-    mountCsvImporter(container, {
-        columns: ['nama_usaha', 'nama_penanggung_jawab', 'kode_program'],
-        onImport: importDudi,
-        onDone: (result) => { if (result.success > 0) state.stepDone[10] = true; saveState(state); },
-        template: {
-            filename: 'template_dudi.csv',
-            columns: ['nama_usaha', 'nama_penanggung_jawab', 'kode_program'],
-            exampleRows: [
-                ['PT Mitra Teknologi Nusantara', 'Hendra Setiawan', 'TKJ'],
-                ['CV Karya Mandiri Elektronik', 'Yulia Permatasari', 'TKJ'],
-            ],
-        },
-    });
-    container.insertAdjacentHTML('afterbegin', alreadyImportedBanner(10));
+    // DUDI step dihapus — step ini tidak lagi digunakan
 }
 
 async function setupStep11() {
@@ -500,7 +465,6 @@ async function setupStep11() {
         <p><strong>Import BK:</strong> <span class="badge ${state.stepDone[8] ? 'badge-success' : 'badge-muted'}">${state.stepDone[8] ? 'Sudah diimpor' : 'Belum/dilewati'}</span></p>
         <p><strong>Import Siswa:</strong> <span class="badge ${state.stepDone[9] ? 'badge-success' : 'badge-muted'}">${state.stepDone[9] ? 'Sudah diimpor' : 'Belum/dilewati'}</span></p>
         <p><strong>Import Orang Tua:</strong> <span class="badge ${state.stepDone.parentsImported ? 'badge-success' : 'badge-muted'}">${state.stepDone.parentsImported ? 'Sudah diimpor' : 'Opsional — dapat dilakukan via dashboard'}</span></p>
-        <p><strong>Import DUDI:</strong> <span class="badge ${state.stepDone[10] ? 'badge-success' : 'badge-muted'}">${state.stepDone[10] ? 'Sudah diimpor' : 'Opsional — dapat dilakukan via dashboard'}</span></p>
         <p class="hint">Klik "Selesaikan Setup" untuk mengaktifkan sistem.</p>
     `;
 }

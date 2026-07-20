@@ -18,8 +18,6 @@ import {
     fetchAttendance,
     fetchObservations,
     fetchCases,
-    fetchPklPlacement,
-    fetchPklAttendanceSummary,
     getUnreadNotifCount,
     getRecentNotifications,
     markNotificationsRead,
@@ -54,12 +52,6 @@ const filterStart    = document.getElementById('filter-date-start');
 const filterEnd      = document.getElementById('filter-date-end');
 const btnFilter      = document.getElementById('btn-filter');
 const childStatusBadge = document.getElementById('child-status-badge');
-const sectionPkl     = document.getElementById('section-pkl');
-const pklInfo        = document.getElementById('pkl-info');
-const pklAttWrap     = document.getElementById('pkl-attendance-wrap');
-const pklSummary     = document.getElementById('pkl-summary');
-const pklTbody       = document.querySelector('#pkl-table tbody');
-const pklEmpty       = document.getElementById('pkl-empty');
 const obsDateStart   = document.getElementById('obs-date-start');
 const obsDateEnd     = document.getElementById('obs-date-end');
 const btnObsFilter   = document.getElementById('btn-obs-filter');
@@ -68,7 +60,7 @@ const notifDropdown  = document.getElementById('notif-dropdown');
 const sectionForum   = document.getElementById('section-forum');
 const tabNav         = document.getElementById('tab-nav');
 const tabBtns        = document.querySelectorAll('.tab-btn');
-const ALL_SECTIONS   = [sectionPkl, sectionSched, sectionAtt,
+const ALL_SECTIONS   = [sectionSched, sectionAtt,
                         sectionObs, sectionCases, sectionForum];
 let _notifPollTimer  = null;
 
@@ -90,7 +82,7 @@ const LC = {
 };
 let children    = [];
 let currentClassId = null;
-let tabLoaded = { pkl:false, schedule:false, attendance:false,
+let tabLoaded = { schedule:false, attendance:false,
                   observations:false, cases:false, forum:false };
 
 const STATUS_LABELS = {
@@ -179,7 +171,6 @@ async function init() {
 
 function getTabKey(sectionId) {
     const map = {
-        'section-pkl':          'pkl',
         'section-schedule':     'schedule',
         'section-attendance':   'attendance',
         'section-observations': 'observations',
@@ -210,7 +201,6 @@ async function showTab(sectionId) {
     const idx   = Number(selectChild.value);
     const child = children[idx];
     if (!child) return;
-    if (key === 'pkl')          await loadPkl(child.student_id);
     if (key === 'schedule') {
         currentClassId = child.class_id;
         await loadSchedule(child.class_id);
@@ -221,8 +211,8 @@ async function showTab(sectionId) {
     if (key === 'forum')         await initForumSection();
 }
 
-const STATUS_STUDENT_LABEL = { AKTIF: 'Aktif', PKL: 'Sedang PKL', LULUS: 'Lulus', KELUAR: 'Tidak aktif' };
-const STATUS_STUDENT_CLASS = { AKTIF: 'badge-status-aktif', PKL: 'badge-status-pkl', LULUS: 'badge-status-lulus', KELUAR: 'badge-status-keluar' };
+const STATUS_STUDENT_LABEL = { AKTIF: 'Aktif', LULUS: 'Lulus', KELUAR: 'Tidak aktif' };
+const STATUS_STUDENT_CLASS = { AKTIF: 'badge-status-aktif', LULUS: 'badge-status-lulus', KELUAR: 'badge-status-keluar' };
 
 async function loadChildData(index) {
     const child = children[index];
@@ -237,27 +227,23 @@ async function loadChildData(index) {
         childStatusBadge.style.display = 'none';
     }
 
-    const isPkl      = child.status === 'PKL';
     const isInactive = child.status === 'LULUS' || child.status === 'KELUAR';
 
     // Reset lazy-load flags untuk anak baru
-    tabLoaded = { pkl:false, schedule:false, attendance:false,
+    tabLoaded = { schedule:false, attendance:false,
                   observations:false, cases:false, forum:false };
     forumInitDone = false;
 
     // Tampilkan tab-nav dan bottom-nav, atur tombol mana yang visible
     tabNav.style.display = 'flex';
     document.getElementById('parent-bottom-nav').style.display = 'block';
-    document.querySelectorAll('[data-tab="section-pkl"]')
-        .forEach(el => el.toggleAttribute('hidden', !isPkl));
     document.querySelectorAll('[data-tab="section-schedule"]')
-        .forEach(el => el.toggleAttribute('hidden', isPkl || isInactive));
+        .forEach(el => el.toggleAttribute('hidden', isInactive));
     document.querySelectorAll('[data-tab="section-attendance"]')
         .forEach(el => el.toggleAttribute('hidden', isInactive));
 
     // Tentukan tab default berdasarkan status anak
-    const defaultTab = isPkl          ? 'section-pkl'
-                     : isInactive     ? 'section-observations'
+    const defaultTab = isInactive     ? 'section-observations'
                      :                  'section-schedule';
     await showTab(defaultTab);
 }
@@ -454,49 +440,6 @@ function renderObsRows(rows) {
     `).join('');
 }
 
-async function loadPkl(studentId) {
-    pklInfo.innerHTML = '<p class="hint">Memuat…</p>';
-    pklAttWrap.style.display = 'none';
-    try {
-        const placement = await fetchPklPlacement(studentId);
-        if (!placement) {
-            pklInfo.innerHTML = '<p class="hint">Tidak ada data penempatan PKL aktif.</p>';
-            return;
-        }
-        pklInfo.innerHTML = `
-            <div style="display:grid;grid-template-columns:auto 1fr;gap:6px 16px;font-size:14px;margin-bottom:4px">
-                <span style="color:var(--color-text-muted)">Tempat PKL</span>
-                <strong>${esc(placement.dudi_name)}</strong>
-                <span style="color:var(--color-text-muted)">Periode</span>
-                <span>${formatDate(placement.start_date)} – ${formatDate(placement.end_date)}</span>
-            </div>`;
-
-        const rows = await fetchPklAttendanceSummary(studentId);
-        pklAttWrap.style.display = 'block';
-        const counts = { HADIR: 0, ALPA: 0, IZIN: 0, SAKIT: 0 };
-        for (const r of rows) counts[r.status] = (counts[r.status] || 0) + 1;
-        pklSummary.innerHTML = `
-            <div class="summary-card card-hadir"><span class="count">${counts.HADIR}</span><span class="label">Hadir</span></div>
-            <div class="summary-card card-sakit"><span class="count">${counts.SAKIT}</span><span class="label">Sakit</span></div>
-            <div class="summary-card card-izin"><span class="count">${counts.IZIN}</span><span class="label">Izin</span></div>
-            <div class="summary-card card-alpha"><span class="count">${counts.ALPA}</span><span class="label">Alpa</span></div>`;
-        if (!rows.length) {
-            pklTbody.innerHTML = '';
-            pklEmpty.style.display = 'block';
-            return;
-        }
-        pklEmpty.style.display = 'none';
-        pklTbody.innerHTML = rows.map(r => `
-            <tr>
-                <td>${formatDate(r.attendance_date)}</td>
-                <td><span class="badge ${STATUS_BADGE[r.status] || ''}">${STATUS_LABELS[r.status] || r.status}</span></td>
-                <td>${esc(r.notes || '-')}</td>
-            </tr>`).join('');
-    } catch (err) {
-        pklInfo.innerHTML = `<p class="hint">Gagal memuat data PKL. ${esc(fe(err))}</p>`;
-    }
-}
-
 async function loadObservations(studentId) {
     const dateStart = obsDateStart.value || null;
     const dateEnd   = obsDateEnd.value   || null;
@@ -542,7 +485,7 @@ function localDateStr(d = new Date()) {
 }
 
 const CASE_STATUS_LABEL = { OPEN: 'Terbuka', CLOSED: 'Selesai' };
-const ROLE_LABEL_SHORT  = { GURU: 'Guru', BK: 'BK', WALI_KELAS: 'Wali Kelas', KAPRODI: 'Ka. Prodi', KEPSEK: 'Kepala Sekolah', WAKA_KESISWAAN: 'Waka Kesiswaan', WAKA_HUMAS: 'Waka Humas' };
+const ROLE_LABEL_SHORT  = { GURU: 'Guru', BK: 'BK', WALI_KELAS: 'Wali Kelas', KEPSEK: 'Kepala Sekolah', WAKA_KESISWAAN: 'Waka Kesiswaan' };
 
 async function loadCases(studentId) {
     casesListEl.innerHTML = '<p class="hint">Memuat…</p>';

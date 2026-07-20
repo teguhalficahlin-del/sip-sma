@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file guru/js/dashboard.js
  * Dashboard utama Portal Guru — 1 login, tab Guru + tab Jabatan.
  */
@@ -141,13 +141,7 @@ let jabatan      = [];
 let isTeacher    = false;  // hanya GURU & WALI_KELAS yang mengajar
 let myStudents         = [];     // for observation selector
 let isBroadObserver    = false;  // BK/Waka/Kepsek — bisa cari siswa seluruh sekolah
-let kaprodiAllStudents = [];     // PKL + aktif di prodi Kaprodi, untuk batas pencarian
 let _studentPoolInit   = false;  // guard: ensureStudentPool hanya load sekali
-let kpStudents      = [];  // kaprodi PKL students
-let kpAktifStudents = [];  // kaprodi siswa AKTIF (kelas)
-let kpProgramId     = null;
-let kpDudiList      = [];
-let kpTabInitialized = false;
 
 const DIMENSION_LABELS = { AKADEMIK:'Akademik', KEHADIRAN:'Kehadiran', PERILAKU:'Perilaku', SOSIAL:'Sosial', AFEKTIF:'Afektif', BAKAT_MINAT:'Bakat & Minat', FISIK:'Fisik', LAINNYA:'Lainnya' };
 
@@ -320,15 +314,15 @@ function showPWAInstallInstructions() {
 
 // ─── Tab navigation ──────────────────────────────────────────
 const TAB_SHORT = {
-    guru: 'Beranda', wali_kelas: 'Wali', bk: 'BK', kaprodi: 'Prodi',
-    waka_kesiswaan: 'Kesiswaan', waka_kurikulum: 'Kurikulum', waka_humas: 'Humas',
+    guru: 'Beranda', wali_kelas: 'Wali', bk: 'BK',
+    waka_kesiswaan: 'Kesiswaan', waka_kurikulum: 'Kurikulum',
     kepsek: 'Kepsek', ks_admin: 'Admin',
     kasus: 'Pembinaan', jurnal: 'Jurnal', observasi: 'Catatan', forum: 'Forum',
     perangkat_ajar: 'Perangkat',
 };
 const TAB_ICON = {
-    guru: 'ti-home', wali_kelas: 'ti-users', bk: 'ti-heart-handshake', kaprodi: 'ti-building',
-    waka_kesiswaan: 'ti-school', waka_kurikulum: 'ti-book', waka_humas: 'ti-briefcase',
+    guru: 'ti-home', wali_kelas: 'ti-users', bk: 'ti-heart-handshake',
+    waka_kesiswaan: 'ti-school', waka_kurikulum: 'ti-book',
     kepsek: 'ti-chart-line', ks_admin: 'ti-shield-check',
     kasus: 'ti-alert-triangle', jurnal: 'ti-notebook', observasi: 'ti-notes', forum: 'ti-messages',
     perangkat_ajar: 'ti-book-2',
@@ -381,10 +375,8 @@ async function loadTabContent(key) {
             case 'guru':        await initGuruTab(); break;
             case 'wali_kelas':  await initWaliTab(); break;
             case 'bk':          await initBkTab(); break;
-            case 'kaprodi':     await initKaprodiTab(); break;
             case 'waka_kesiswaan': await initWakaKesiswaanTab(); break;
             case 'waka_kurikulum': await initWakaKurTab(); break;
-            case 'waka_humas':  await initWakaHumasTab(); break;
             case 'kepsek':      await initKepsekTab(); break;
             case 'ks_admin':    await initKsAdminTab(); break;
             case 'kasus':       await initKasusTab(); break;
@@ -1810,450 +1802,10 @@ async function loadWkAttendanceRecap() {
 
 
 const HANDLER_ROLE_LABELS = {
-    GURU: 'Guru', WALI_KELAS: 'Wali Kelas', BK: 'BK', KAPRODI: 'Kaprodi',
+    GURU: 'Guru', WALI_KELAS: 'Wali Kelas', BK: 'BK',
     KEPSEK: 'Kepala Sekolah', WAKA_KESISWAAN: 'Waka Kesiswaan',
-    WAKA_KURIKULUM: 'Waka Kurikulum', DUDI: 'DUDI',
+    WAKA_KURIKULUM: 'Waka Kurikulum',
 };
-
-
-// ─── TAB KAPRODI ─────────────────────────────────────────────
-
-function handleKpStudentsClick(e) {
-    const btn = e.target.closest('.kp-finish-btn');
-    if (btn) handleFinishPkl(btn);
-}
-
-async function initKaprodiTab() {
-    if (kpTabInitialized) return;
-    kpTabInitialized = true;
-
-    const programId = currentUser.kaprodi_program_id ??
-        (currentUser.role_type === 'KAPRODI' ? currentUser.program_id : null);
-    kpProgramId = programId;
-    if (!programId) {
-        document.getElementById('tab-kaprodi').querySelector('.page-body').innerHTML =
-            '<div class="section-card"><p class="hint">Akun ini belum terhubung ke program keahlian. Hubungi admin.</p></div>';
-        return;
-    }
-
-    try {
-        const [program, students, aktifStudents, dudi] = await Promise.all([
-            getProgram(programId),
-            fetchPklStudents(programId),
-            fetchNonPklStudents(programId),
-            fetchDudiPartners(programId),
-        ]);
-        kpStudents = students;
-        kpDudiList = dudi;
-        kpAktifStudents = aktifStudents;
-
-        // Gabung PKL + aktif untuk pool pencarian siswa (Observasi & Buat Kasus)
-        const seen = new Set(kpStudents.map(s => s.student_id));
-        kaprodiAllStudents = [...kpStudents, ...kpAktifStudents.filter(s => !seen.has(s.student_id))];
-
-        renderKpSummary();
-        renderKpStudents();
-        renderKpDudi();
-
-        const today    = localDateStr();
-        const monthAgo = localDateStr(new Date(Date.now() - 30*86400000));
-
-        document.getElementById('kp-date-start').value  = monthAgo;
-        document.getElementById('kp-date-end').value    = today;
-        document.getElementById('kp-cls-start').value   = monthAgo;
-        document.getElementById('kp-cls-end').value     = today;
-
-        document.getElementById('kp-filter-btn').onclick     = loadKpRecap;
-        document.getElementById('kp-cls-filter-btn').onclick = loadKpClsRecap;
-
-        const studentsBody = document.getElementById('kp-students-body');
-        studentsBody.removeEventListener('click', handleKpStudentsClick);
-        studentsBody.addEventListener('click', handleKpStudentsClick);
-
-        await Promise.all([loadKpRecap(), loadKpClsRecap(), loadKpObs(), initKpPlacementForm(programId)]);
-        document.querySelectorAll('#kp-accordion .kp-acc-header').forEach(header => {
-            const newHeader = header.cloneNode(true);
-            header.parentNode.replaceChild(newHeader, header);
-            newHeader.addEventListener('click', () => {
-                const targetId = newHeader.dataset.target;
-                const isOpen   = newHeader.closest('.kp-acc-item').classList.contains('open');
-                document.querySelectorAll('#kp-accordion .kp-acc-item').forEach(item => {
-                    item.classList.remove('open');
-                    item.querySelector('.kp-acc-body').style.display = 'none';
-                });
-                if (!isOpen) {
-                    const item = newHeader.closest('.kp-acc-item');
-                    item.classList.add('open');
-                    document.getElementById(targetId).style.display = 'block';
-                }
-            });
-        });
-    } catch (err) {
-        console.error('[kaprodi]', err);
-        const panel = document.getElementById('tab-kaprodi')?.querySelector('.page-body');
-        if (panel) {
-            panel.innerHTML = '<div class="section-card"><p style="color:red;padding:8px">Gagal memuat tab Kaprodi. Silakan coba lagi atau refresh halaman.</p></div>';
-        }
-    }
-}
-
-function renderKpSummary() {
-    const placed = kpStudents.filter(s => s.has_placement).length;
-    document.getElementById('kp-stat-total').textContent   = kpStudents.length;
-    document.getElementById('kp-stat-placed').textContent  = placed;
-    document.getElementById('kp-stat-unplaced').textContent = kpStudents.length - placed;
-}
-
-function renderKpStudents() {
-    const tbody = document.getElementById('kp-students-body');
-    const empty = document.getElementById('kp-students-empty');
-
-    if (kpStudents.length === 0) { tbody.innerHTML = ''; empty.style.display = 'block'; return; }
-    empty.style.display = 'none';
-    tbody.innerHTML = kpStudents.map(s => `<tr>
-        <td>${esc(s.full_name)}</td><td>${esc(s.nis)}</td>
-        <td>${esc(s.dudi_name)}</td>
-        <td>${s.has_placement ? `${fmt(s.start_date)} – ${fmt(s.end_date)}` : '<span class="badge badge-tidak-hadir">Belum</span>'}</td>
-        <td>${s.has_placement
-            ? `<button class="btn btn-sm btn-secondary kp-finish-btn"
-                data-student-id="${esc(s.student_id)}"
-                data-placement-id="${esc(s.placement_id)}"
-                data-nama="${esc(s.full_name)}"
-                style="font-size:11px;padding:3px 8px">Selesaikan PKL</button>`
-            : '—'}</td>
-    </tr>`).join('');
-}
-
-async function handleFinishPkl(btn) {
-    const { studentId, placementId, nama } = btn.dataset;
-    if (!confirm(`Selesaikan PKL ${nama}? Status akan kembali ke AKTIF.`)) return;
-    btn.disabled = true; btn.textContent = 'Memproses…';
-    try {
-        await finishPlacement(studentId, placementId);
-        kpStudents = await fetchPklStudents(kpProgramId);
-        const seen = new Set(kpStudents.map(s => s.student_id));
-        kpAktifStudents = [...kpAktifStudents.filter(s => !seen.has(s.student_id))];
-        renderKpSummary();
-        renderKpStudents();
-        // Reload dropdown siswa di form penempatan
-        const sel = document.getElementById('kp-pl-student');
-        if (sel) {
-            const nonPkl = await fetchNonPklStudents(kpProgramId).catch(() => []);
-            sel.innerHTML = '<option value="">-- Pilih siswa --</option>';
-            nonPkl.forEach(s => {
-                const o = document.createElement('option');
-                o.value = s.student_id; o.textContent = `${s.full_name} (${s.nis})`;
-                sel.appendChild(o);
-            });
-        }
-    } catch (err) {
-        btn.disabled = false; btn.textContent = 'Selesaikan PKL';
-        alert(`Gagal: ${fe(err)}`);
-    }
-}
-
-function renderKpDudi() {
-    const tbody = document.getElementById('kp-dudi-body');
-    const empty = document.getElementById('kp-dudi-empty');
-    if (kpDudiList.length === 0) { tbody.innerHTML = ''; empty.style.display = 'block'; return; }
-    empty.style.display = 'none';
-    tbody.innerHTML = kpDudiList.map(d => `<tr>
-        <td>${esc(d.org_name)}</td><td>${esc(d.pic_name)}</td>
-    </tr>`).join('');
-}
-
-async function loadKpRecap() {
-    const ids   = kpStudents.map(s => s.student_id);
-    const start = document.getElementById('kp-date-start').value;
-    const end   = document.getElementById('kp-date-end').value;
-    const tbody = document.getElementById('kp-recap-body');
-    const empty = document.getElementById('kp-recap-empty');
-    tbody.innerHTML = '<tr><td colspan="6" class="hint">Memuat…</td></tr>';
-    empty.style.display = 'none';
-
-    if (ids.length === 0) { tbody.innerHTML = ''; empty.style.display = 'block'; return; }
-    try {
-        const rows = await fetchPklAttendance(ids, start, end);
-        const nameById = new Map(kpStudents.map(s => [s.student_id, { name: s.full_name, nis: s.nis }]));
-        const recap = rows.map(r => ({ ...nameById.get(r.student_id), ...r }));
-        if (recap.every(a => a.total === 0)) { tbody.innerHTML = ''; empty.style.display = 'block'; return; }
-        tbody.innerHTML = recap.map(a => {
-            const pct   = a.total > 0 ? Math.round(a.HADIR / a.total * 100) : 0;
-            const color = pct >= 80 ? 'var(--color-success)' : pct >= 60 ? 'var(--color-warning,#f59e0b)' : 'var(--color-danger)';
-            return `<tr>
-                <td><span style="font-weight:500">${esc(a.name)}</span><br><span style="font-size:0.78rem;color:var(--color-text-muted)">${esc(a.nis ?? '—')}</span></td>
-                <td style="text-align:center">${a.HADIR}</td>
-                <td style="text-align:center">${a.IZIN}</td>
-                <td style="text-align:center">${a.SAKIT}</td>
-                <td style="text-align:center">${a.ALPA}</td>
-                <td style="text-align:center;font-weight:600;color:${color}">${a.total > 0 ? pct+'%' : '—'}</td>
-            </tr>`;
-        }).join('');
-    } catch (err) {
-        tbody.innerHTML = `<tr><td colspan="6" style="color:var(--color-danger)">${esc(fe(err))}</td></tr>`;
-    }
-}
-
-async function loadKpClsRecap() {
-    const dateStart = document.getElementById('kp-cls-start').value || null;
-    const dateEnd   = document.getElementById('kp-cls-end').value   || null;
-    const container = document.getElementById('kp-cls-recap');
-    container.innerHTML = '<p class="hint">Memuat…</p>';
-
-    if (!kpAktifStudents.length) {
-        container.innerHTML = '<p class="hint">Belum ada siswa aktif di program ini.</p>';
-        return;
-    }
-
-    try {
-        // Ambil kelas di program Kaprodi
-        const classes = await getClassesByProgram(kpProgramId);
-        if (!classes.length) {
-            container.innerHTML = '<p class="hint">Belum ada kelas di program ini.</p>';
-            return;
-        }
-
-        // Rekap agregat per kelas
-        const allRows = await getAttendanceRecapPerClass(dateStart, dateEnd);
-        const classIds = new Set(classes.map(c => c.class_id));
-        const rows = allRows.filter(r => classIds.has(r.class_id));
-
-        if (!rows.length) {
-            container.innerHTML = '<p class="hint">Belum ada kelas di program ini untuk rentang tanggal tersebut.</p>';
-            return;
-        }
-
-        const html = rows
-            .sort((a, b) => a.name.localeCompare(b.name, 'id'))
-            .map(r => {
-                const tot  = r.HADIR + r.IZIN + r.SAKIT + r.ALPA;
-                const pctH = tot > 0 ? Math.round(r.HADIR       / tot * 100) : 0;
-                const pctI = tot > 0 ? Math.round(r.IZIN        / tot * 100) : 0;
-                const pctS = tot > 0 ? Math.round(r.SAKIT       / tot * 100) : 0;
-                const pctA = tot > 0 ? Math.round(r.ALPA / tot * 100) : 0;
-                const colH = pctH >= 80 ? 'var(--color-success)' : pctH >= 60 ? 'var(--color-warning,#f59e0b)' : 'var(--color-danger)';
-                return `
-                <details class="att-accordion" style="margin-bottom:8px">
-                    <summary class="att-accordion-summary">
-                        <span class="att-acc-name">${esc(r.name)}</span>
-                        <span class="att-acc-names" style="display:flex;gap:10px;font-size:11px;font-weight:500">
-                            <span style="color:${colH}">${pctH}%H</span>
-                            <span style="color:var(--color-warning,#f59e0b)">${pctI}%I</span>
-                            <span style="color:var(--color-primary)">${pctS}%S</span>
-                            <span style="color:var(--color-danger)">${pctA}%A</span>
-                        </span>
-                    </summary>
-                    <div data-class-id="${esc(r.class_id)}"
-                         data-date-start="${esc(dateStart ?? '')}"
-                         data-date-end="${esc(dateEnd ?? '')}"
-                         style="padding:4px 0">
-                        <p class="hint" style="padding:8px 16px">Memuat siswa…</p>
-                    </div>
-                </details>`;
-            }).join('');
-
-        container.innerHTML = buildAttStatCards(rows) + html;
-
-        // Lazy load siswa saat accordion kelas dibuka
-        container.querySelectorAll('details.att-accordion').forEach(det => {
-            det.addEventListener('toggle', async () => {
-                if (!det.open) return;
-                const body = det.querySelector('[data-class-id]');
-                if (!body || body.dataset.loaded) return;
-                body.dataset.loaded = '1';
-                const classId = body.dataset.classId;
-                const dStart  = body.dataset.dateStart || null;
-                const dEnd    = body.dataset.dateEnd   || null;
-                try {
-                    const students = await getWaliAttendanceSummary(
-                        classId, config.current_academic_year, dStart, dEnd
-                    );
-                    if (!students.length) {
-                        body.innerHTML = '<p class="hint" style="padding:8px 16px">Belum ada data kehadiran siswa.</p>';
-                        return;
-                    }
-                    body.innerHTML = students
-                        .sort((a, b) => a.full_name.localeCompare(b.full_name, 'id'))
-                        .map(s => {
-                            const pct   = s.total > 0 ? Math.round(s.HADIR / s.total * 100) : null;
-                            const color = pct === null ? 'var(--color-text-muted)' : pct >= 80 ? 'var(--color-success)' : pct >= 60 ? 'var(--color-warning,#f59e0b)' : 'var(--color-danger)';
-                            return `
-                            <details class="att-accordion wz-accordion-inner"
-                                     style="margin:4px 8px 4px 24px"
-                                     data-student-id="${esc(s.student_id)}"
-                                     data-date-start="${esc(dStart ?? '')}"
-                                     data-date-end="${esc(dEnd ?? '')}">
-                                <summary class="att-accordion-summary">
-                                    <span class="att-acc-name">
-                                        ${esc(s.full_name)}
-                                        <span class="sub-label" style="margin-left:4px">${esc(s.nis)}</span>
-                                    </span>
-                                    <span style="color:${color};font-weight:600">
-                                        ${pct !== null ? pct + '%' : '—'}
-                                    </span>
-                                </summary>
-                                <div style="padding:4px 0">
-                                    <p class="hint" style="padding:8px 24px">Memuat sesi…</p>
-                                </div>
-                            </details>`;
-                        }).join('');
-
-                    body.querySelectorAll('details[data-student-id]').forEach(stuDet => {
-                        stuDet.addEventListener('toggle', async () => {
-                            if (!stuDet.open) return;
-                            const sBody = stuDet.querySelector('div');
-                            if (!sBody || sBody.dataset.loaded) return;
-                            sBody.dataset.loaded = '1';
-                            const sid = stuDet.dataset.studentId;
-                            const ds  = stuDet.dataset.dateStart || null;
-                            const de  = stuDet.dataset.dateEnd   || null;
-                            if (!ds || !de) {
-                                sBody.innerHTML = '<p class="hint" style="padding:8px 24px">Pilih rentang tanggal untuk melihat detail sesi. Untuk data lengkap, gunakan fitur Unduh Excel.</p>';
-                                return;
-                            }
-                            try {
-                                const sessions = await getStudentAttendanceSessions(sid, ds, de);
-                                if (!sessions.length) {
-                                    sBody.innerHTML = '<p class="hint" style="padding:8px 24px">Belum ada sesi tercatat.</p>';
-                                    return;
-                                }
-                                const STATUS_COLOR = {
-                                    HADIR: 'var(--color-success)',
-                                    IZIN:  'var(--color-warning,#f59e0b)',
-                                    SAKIT: 'var(--color-primary)',
-                                    ALPA: 'var(--color-danger)',
-                                };
-                                const STATUS_LABEL = { HADIR: 'Hadir', IZIN: 'Izin', SAKIT: 'Sakit', ALPA: 'Alpa' };
-                                sBody.innerHTML = sessions.map(s => `
-                                    <div style="display:flex;align-items:center;gap:8px;
-                                        padding:7px 24px;border-top:0.5px solid var(--color-border)">
-                                        <span style="font-size:12px;color:var(--color-text-muted);min-width:90px">
-                                            ${esc(s.schedule.session_date)} ${fmtTime(s.schedule.session_start)}
-                                        </span>
-                                        <span style="flex:1;font-size:12px;color:var(--color-text-muted)">
-                                            ${esc(s.schedule.subject?.name ?? '—')} · ${esc(s.schedule.teacher?.full_name ?? '—')}
-                                        </span>
-                                        <span style="font-size:11px;font-weight:600;
-                                            color:${STATUS_COLOR[s.status] ?? 'var(--color-text-muted)'}">
-                                            ${STATUS_LABEL[s.status] ?? esc(s.status)}
-                                        </span>
-                                    </div>`).join('');
-                            } catch(err) {
-                                sBody.innerHTML = `<div class="alert alert-danger" style="margin:8px 24px">${esc(fe(err))}</div>`;
-                            }
-                        });
-                    });
-                } catch (err) {
-                    body.innerHTML = `<div class="alert alert-danger" style="margin:8px 16px">${esc(fe(err))}</div>`;
-                }
-            });
-        });
-
-    } catch (err) {
-        container.innerHTML = `<div class="alert alert-danger">${esc(fe(err))}</div>`;
-    }
-}
-
-async function loadKpObs() {
-    const ids    = kpStudents.map(s => s.student_id);
-    const hintEl = document.getElementById('kp-obs-hint');
-    const listEl = document.getElementById('kp-obs-list');
-    listEl.innerHTML = '';
-    if (ids.length === 0) { hintEl.style.display = 'block'; return; }
-    try {
-        const rows = await fetchDudiObservations(ids);
-        if (rows.length === 0) { hintEl.style.display = 'block'; return; }
-        hintEl.style.display = 'none';
-        const nameById = new Map(kpStudents.map(s => [s.student_id, s.full_name]));
-        listEl.innerHTML = rows.map(r => `
-            <div class="obs-card obs-${r.sentiment.toLowerCase()}">
-                <div class="obs-meta"><strong>${esc(nameById.get(r.student_id) ?? '—')}</strong>
-                    &middot; ${esc(r.author)} &middot; ${DIMENSION_LABELS[r.dimension] ?? r.dimension} &middot; ${fmt(r.date)}
-                </div>
-                <p class="obs-content">${esc(r.content)}</p>
-            </div>`).join('');
-    } catch (err) {
-        listEl.innerHTML = `<div class="status-err">${esc(fe(err))}</div>`;
-    }
-}
-
-async function initKpPlacementForm(programId) {
-    // Isi dropdown siswa belum PKL
-    async function reloadStudentSelect() {
-        const el = document.getElementById('kp-pl-student');
-        el.innerHTML = '<option value="">-- Pilih siswa --</option>';
-        const nonPkl = await fetchNonPklStudents(programId).catch(() => []);
-        nonPkl.forEach(s => {
-            const o = document.createElement('option');
-            o.value = s.student_id; o.textContent = `${s.full_name} (${s.nis})`;
-            el.appendChild(o);
-        });
-    }
-    function populateDudiSelect() {
-        const el = document.getElementById('kp-pl-dudi');
-        el.innerHTML = '<option value="">-- Pilih DUDI --</option>';
-        kpDudiList.forEach(d => {
-            const o = document.createElement('option');
-            o.value = d.user_id; o.textContent = d.org_name;
-            el.appendChild(o);
-        });
-    }
-    await reloadStudentSelect();
-    populateDudiSelect();
-
-    document.getElementById('kp-placement-form').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const resultEl = document.getElementById('kp-placement-result');
-        const btn = document.getElementById('kp-pl-submit');
-        btn.disabled = true; btn.textContent = 'Menyimpan…';
-        resultEl.innerHTML = '';
-        try {
-            await createPlacement({
-                studentId:  document.getElementById('kp-pl-student').value,
-                dudiUserId: document.getElementById('kp-pl-dudi').value,
-                startDate:  document.getElementById('kp-pl-start').value,
-                endDate:    document.getElementById('kp-pl-end').value,
-            });
-            resultEl.innerHTML = '<p style="color:var(--color-success)">✓ Penempatan berhasil disimpan.</p>';
-            kpStudents = await fetchPklStudents(programId);
-            renderKpSummary(); renderKpStudents();
-            await reloadStudentSelect();
-        } catch (err) {
-            resultEl.innerHTML = `<p style="color:var(--color-danger)">✗ ${esc(fe(err))}</p>`;
-        } finally {
-            btn.disabled = false; btn.textContent = 'Simpan Penempatan';
-        }
-    });
-
-    document.getElementById('kp-dl-template').addEventListener('click', () => {
-        const csv = 'nis,login_dudi,tanggal_mulai,tanggal_selesai\n12345,cv-maju-bersama,2027-07-01,2027-09-30\n';
-        const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(new Blob([csv], { type:'text/csv' })), download:'template_penempatan_pkl.csv' });
-        a.click();
-    });
-
-    const fileInput = document.getElementById('kp-file-input');
-    document.getElementById('kp-import-btn').onclick = () => fileInput.click();
-    fileInput.addEventListener('change', async () => {
-        const file = fileInput.files[0];
-        if (!file) return;
-        const resultEl = document.getElementById('kp-placement-result');
-        resultEl.innerHTML = '<p class="hint">Mengimpor…</p>';
-        try {
-            if (!file.name.endsWith('.csv')) throw new Error('Gunakan format CSV.');
-            const csv = await file.text();
-            const result = await bulkImportPkl(csv);
-            resultEl.innerHTML = `<p style="color:var(--color-success)">✓ Selesai — ${result.success} berhasil, ${result.skipped} dilewati, ${result.failed} gagal.</p>`;
-            kpStudents = await fetchPklStudents(programId);
-            renderKpSummary(); renderKpStudents();
-            await reloadStudentSelect();
-        } catch (err) {
-            resultEl.innerHTML = `<p style="color:var(--color-danger)">✗ ${esc(fe(err))}</p>`;
-        } finally {
-            fileInput.value = '';
-        }
-    });
-}
-
 
 
 // ─── TAB WAKA KURIKULUM ───────────────────────────────────────
@@ -2484,140 +2036,6 @@ function handleWkKur2Btn() {
         document.getElementById('wk-kur2-btn').textContent = 'Tampilkan';
     } else {
         loadWkKur2();
-    }
-}
-
-// ─── TAB WAKA HUMAS ──────────────────────────────────────────
-
-let whStudents = [];
-let whDudiList = [];
-let _whTabInit = false;
-
-async function initWakaHumasTab() {
-    if (_whTabInit) return;
-    _whTabInit = true;
-
-    const today    = localDateStr();
-    const monthAgo = localDateStr(new Date(Date.now() - 30*86400000));
-    document.getElementById('wh-date-start').value = monthAgo;
-    document.getElementById('wh-date-end').value   = today;
-    document.getElementById('wh-filter-btn').onclick = loadWhRecap;
-
-    try {
-        [whStudents, whDudiList] = await Promise.all([
-            fetchAllPklStudents(),
-            fetchAllDudiPartners(),
-        ]);
-        renderWhStats();
-        renderWhStudents();
-        renderWhDudi();
-        await Promise.all([loadWhRecap(), loadWhObs(), loadWhCases()]);
-    } catch (err) {
-        console.error('[waka_humas]', err);
-    }
-}
-
-function renderWhStats() {
-    const placed = whStudents.filter(s => s.has_placement).length;
-    document.getElementById('wh-stat-total').textContent  = whStudents.length;
-    document.getElementById('wh-stat-placed').textContent = placed;
-    document.getElementById('wh-stat-dudi').textContent   = whDudiList.length;
-}
-
-function renderWhStudents() {
-    const tbody = document.getElementById('wh-students-body');
-    const empty = document.getElementById('wh-students-empty');
-    if (whStudents.length === 0) { tbody.innerHTML = ''; empty.style.display = 'block'; return; }
-    empty.style.display = 'none';
-    tbody.innerHTML = whStudents.map(s => `<tr>
-        <td>${esc(s.full_name)}</td><td>${esc(s.nis)}</td>
-        <td>${esc(s.program_name)}</td>
-        <td>${esc(s.dudi_name)}</td>
-        <td>${s.has_placement ? `${fmt(s.start_date)} – ${fmt(s.end_date)}` : '<span class="badge badge-tidak-hadir">Belum</span>'}</td>
-    </tr>`).join('');
-}
-
-function renderWhDudi() {
-    const tbody = document.getElementById('wh-dudi-body');
-    const empty = document.getElementById('wh-dudi-empty');
-    if (whDudiList.length === 0) { tbody.innerHTML = ''; empty.style.display = 'block'; return; }
-    empty.style.display = 'none';
-    tbody.innerHTML = whDudiList.map(d => `<tr>
-        <td>${esc(d.org_name)}</td><td>${esc(d.pic_name)}</td><td>${esc(d.program_name)}</td>
-    </tr>`).join('');
-}
-
-async function loadWhRecap() {
-    const ids   = whStudents.map(s => s.student_id);
-    const start = document.getElementById('wh-date-start').value;
-    const end   = document.getElementById('wh-date-end').value;
-    const tbody = document.getElementById('wh-recap-body');
-    const empty = document.getElementById('wh-recap-empty');
-    tbody.innerHTML = '<tr><td colspan="7" class="hint">Memuat…</td></tr>';
-    empty.style.display = 'none';
-
-    if (ids.length === 0) { tbody.innerHTML = ''; empty.style.display = 'block'; return; }
-    try {
-        const rows = await fetchPklAttendance(ids, start, end);
-        const nameMap = new Map(whStudents.map(s => [s.student_id, { name: s.full_name, prog: s.program_name }]));
-        const byStudent = new Map(whStudents.map(s => [s.student_id, { name: s.full_name, prog: s.program_name, HADIR:0, ALPA:0, IZIN:0, SAKIT:0, total:0 }]));
-        for (const r of rows) {
-            const a = byStudent.get(r.student_id);
-            if (!a) continue;
-            if (a[r.status] !== undefined) a[r.status]++;
-            a.total++;
-        }
-        const recap = [...byStudent.values()];
-        if (recap.every(a => a.total === 0)) { tbody.innerHTML = ''; empty.style.display = 'block'; return; }
-        tbody.innerHTML = recap.map(a => {
-            const pct = a.total > 0 ? Math.round(a.HADIR / a.total * 100) : 0;
-            return `<tr><td>${esc(a.name)}</td><td>${esc(a.prog)}</td><td>${a.HADIR}</td><td>${a.SAKIT}</td><td>${a.IZIN}</td><td>${a.ALPA}</td><td>${a.total > 0 ? pct+'%' : '—'}</td></tr>`;
-        }).join('');
-    } catch (err) {
-        tbody.innerHTML = `<tr><td colspan="7" style="color:var(--color-danger)">${esc(fe(err))}</td></tr>`;
-    }
-}
-
-async function loadWhObs() {
-    const ids    = whStudents.map(s => s.student_id);
-    const hintEl = document.getElementById('wh-obs-hint');
-    const listEl = document.getElementById('wh-obs-list');
-    listEl.innerHTML = '';
-    if (ids.length === 0) { hintEl.style.display = 'block'; return; }
-    try {
-        const rows = await fetchDudiObservations(ids);
-        if (rows.length === 0) { hintEl.style.display = 'block'; return; }
-        hintEl.style.display = 'none';
-        const nameById = new Map(whStudents.map(s => [s.student_id, s.full_name]));
-        listEl.innerHTML = rows.map(r => `
-            <div class="obs-card obs-${r.sentiment.toLowerCase()}">
-                <div class="obs-meta"><strong>${esc(nameById.get(r.student_id) ?? '—')}</strong>
-                    &middot; ${esc(r.author)} &middot; ${DIMENSION_LABELS[r.dimension] ?? r.dimension} &middot; ${fmt(r.date)}
-                </div>
-                <p class="obs-content">${esc(r.content)}</p>
-            </div>`).join('');
-    } catch (err) {
-        listEl.innerHTML = `<div class="status-err">${esc(fe(err))}</div>`;
-    }
-}
-
-async function loadWhCases() {
-    const tbody = document.getElementById('wh-cases-body');
-    const empty = document.getElementById('wh-cases-empty');
-    tbody.innerHTML = '<tr><td colspan="4" class="hint">Memuat…</td></tr>';
-    empty.style.display = 'none';
-    try {
-        const all = await getOpenCases(currentUser.school_id);
-        const cases = all.filter(c => c.track === 'PKL');
-        if (cases.length === 0) { tbody.innerHTML = ''; empty.style.display = 'block'; return; }
-        tbody.innerHTML = cases.map(c => `<tr>
-            <td>${esc(c.student?.full_name ?? '—')}</td>
-            <td>${esc(c.title)}</td>
-            <td>${esc(c.current_handler_role ?? '—')}</td>
-            <td>${fmt(c.created_at)}</td>
-        </tr>`).join('');
-    } catch (err) {
-        tbody.innerHTML = `<tr><td colspan="4" style="color:var(--color-danger)">${esc(fe(err))}</td></tr>`;
     }
 }
 
@@ -2880,18 +2298,16 @@ const CASE_STATUS_BADGE = {
     MONITORING:   'badge-monitoring',
     CLOSED:       'badge-closed',
 };
-const CASE_TRACK_LABEL = { SEKOLAH: 'Sekolah', PKL: 'PKL' };
+const CASE_TRACK_LABEL = { SEKOLAH: 'Sekolah' };
 const ROLE_LABEL = {
     GURU: 'Guru', BK: 'BK', WALI_KELAS: 'Wali Kelas',
-    KAPRODI: 'Ka. Prodi', KEPSEK: 'Kepala Sekolah',
-    DUDI: 'DUDI', WAKA_KESISWAAN: 'Waka Kesiswaan', WAKA_KURIKULUM: 'Waka Kurikulum',
+    KEPSEK: 'Kepala Sekolah',
+    WAKA_KESISWAAN: 'Waka Kesiswaan', WAKA_KURIKULUM: 'Waka Kurikulum',
 };
 // Rantai = PENUNTUN saja (referensi untuk peringatan), BUKAN batasan.
-// Eskalasi antar-internal bebas; server hanya mengunci: target wajib peran
-// internal kasus, & DUDI hanya → KAPRODI (mig 20260703250000).
+// Eskalasi antar-internal bebas; server hanya mengunci: target wajib peran internal kasus.
 const ESCALATION_CHAIN = {
-    SEKOLAH: ['GURU','BK','WALI_KELAS','KAPRODI','WAKA_KESISWAAN','KEPSEK'],
-    PKL:     ['DUDI','KAPRODI','WAKA_KESISWAAN','KEPSEK'],
+    SEKOLAH: ['GURU','BK','WALI_KELAS','WAKA_KESISWAAN','KEPSEK'],
 };
 const STATUS_AFTER_CURRENT = {
     OPEN:         ['UNDER_REVIEW','INTERVENTION','MONITORING'],
@@ -2962,18 +2378,9 @@ async function initKasusTab() {
     const trackField  = document.getElementById('kasus-c-track-field');
     const trackEl     = document.getElementById('kasus-c-track');
 
-    // Kaprodi bisa pilih jalur; DUDI selalu PKL; semua lain selalu Sekolah
-    const isKaprodi = jabatan.includes('kaprodi');
-    const isDudi    = jabatan.includes('dudi');
-    if (isKaprodi) {
-        trackField.style.display = '';
-    } else if (isDudi) {
-        trackField.style.display = 'none';
-        trackEl.value = 'PKL';
-    } else {
-        trackField.style.display = 'none';
-        trackEl.value = 'SEKOLAH';
-    }
+    // Semua pengguna selalu menggunakan jalur Sekolah
+    trackField.style.display = 'none';
+    trackEl.value = 'SEKOLAH';
 
     let kasusSearchSeq = 0;
     searchEl.addEventListener('input', async () => {
@@ -2981,11 +2388,7 @@ async function initKasusTab() {
         const q   = raw.toLowerCase();
         if (q.length < 2) { listEl.style.display = 'none'; return; }
 
-        let localPool = myStudents;
-        if (jabatan.includes('kaprodi') && kaprodiAllStudents.length) {
-            const seen = new Set(myStudents.map(s => s.student_id));
-            localPool = [...myStudents, ...kaprodiAllStudents.filter(s => !seen.has(s.student_id))];
-        }
+        const localPool = myStudents;
         const local = localPool.filter(s =>
             s.full_name.toLowerCase().includes(q) || s.nis?.includes(q)
         );
@@ -3210,7 +2613,7 @@ function renderKasusEvents(events) {
 }
 
 // 6 peran yang boleh jadi handler/eskalasi tujuan kasus internal
-const INTERNAL_CASE_ROLES = ['GURU','BK','WALI_KELAS','KAPRODI','WAKA_KESISWAAN','KEPSEK'];
+const INTERNAL_CASE_ROLES = ['GURU','BK','WALI_KELAS','WAKA_KESISWAAN','KEPSEK'];
 const AUDIENCE_LABEL = { PRIVATE: '🔒 Privat', RESTRICTED: '👥 Orang Tertentu', PUBLIC: '🌐 Semua Internal' };
 
 function renderKasusActions(kasus) {
@@ -3887,13 +3290,12 @@ async function loadForumPosts(append = false) {
 
     const LIMIT = 20;
     try {
-        // Waka/Kepsek/Kaprodi: tampilkan semua posting kelas (tidak filter by audience table).
+        // Waka/Kepsek: tampilkan semua posting kelas (tidak filter by audience table).
         // RLS fn_can_read_forum_post tetap menjadi penjaga akses di sisi database.
         const isOversight = ['WAKA_KESISWAAN', 'KEPSEK', 'ADMINISTRATIVE'].includes(currentUser.role_type)
             || currentUser.is_waka_kesiswaan === true
             || currentUser.is_kepsek === true;
-        const isKaprodi = currentUser.role_type === 'KAPRODI' || !!currentUser.kaprodi_program_id;
-        const skipAudienceFilter = isOversight || isKaprodi;
+        const skipAudienceFilter = isOversight;
         const posts = await getForumPosts(
             _forumClassId, _forumAcademicYear,
             currentUser.user_id, currentUser.school_id,
@@ -5194,10 +4596,6 @@ function buildProfilMengajarHTML(p) {
 
     <div class="pm-q"><p class="pm-label">1. Tujuan Utama Pembelajaran</p>
       ${[
-        ['PKL',                  'Persiapan PKL',                      null],
-        ['DUNIA_KERJA',          'Persiapan Dunia Kerja',               null],
-        ['SERTIFIKASI',          'Persiapan Sertifikasi',               'Nama sertifikasi (contoh: Mikrotik MTCNA)'],
-        ['LKS',                  'Persiapan LKS',                       'Bidang/skill yang difokuskan'],
         ['KONSEP_DASAR',         'Penguatan Konsep Dasar',              null],
         ['KEWIRAUSAHAAN',        'Projek Kewirausahaan',                null],
         ['UMKM',                 'UMKM Lokal',                          null],
@@ -5273,8 +4671,7 @@ function buildProfilMengajarHTML(p) {
       <div style="display:grid;gap:8px;max-width:360px">
         <label style="font-size:13px">Kota/daerah<input type="text" class="input input-sm" name="local_city" value="${esc(v.local_city??'')}" style="margin-top:4px"></label>
         <label style="font-size:13px">Industri lokal<input type="text" class="input input-sm" name="local_industry" value="${esc(v.local_industry??'')}" style="margin-top:4px"></label>
-        <label style="font-size:13px">Nama DUDI mitra<input type="text" class="input input-sm" name="local_dudi_partners" value="${esc(v.local_dudi_partners??'')}" style="margin-top:4px"></label>
-        <label style="font-size:13px">Produk/jasa lokal<input type="text" class="input input-sm" name="local_products" value="${esc(v.local_products??'')}" style="margin-top:4px"></label>
+<label style="font-size:13px">Produk/jasa lokal<input type="text" class="input input-sm" name="local_products" value="${esc(v.local_products??'')}" style="margin-top:4px"></label>
       </div>
     </div>
 
@@ -5324,8 +4721,7 @@ function collectProfilMengajar(form) {
         depth_level: radio('depth_level'),
         local_city: txt('local_city'),
         local_industry: txt('local_industry'),
-        local_dudi_partners: txt('local_dudi_partners'),
-        local_products: txt('local_products'),
+local_products: txt('local_products'),
         avoided_activities: checks('avoided_activities'),
         avoided_detail: txt('avoided_detail'),
         integration_prefs: checks('integration_prefs'),
@@ -5449,10 +4845,6 @@ function buildKonteksKelasHTML(ctx, subjName, ay) {
          ['LABORATORIUM','Laboratorium'],['TEACHING_FACTORY','Teaching Factory']].map(([val,lbl]) =>
         `<label class="pm-radio-row"><input type="checkbox" name="resources_available" value="${val}" ${chk(v.resources_available,val)}> ${lbl}</label>`
       ).join('')}
-      <label class="pm-radio-row"><input type="checkbox" name="resources_available" value="DUDI_AKTIF" id="kk-dudi-chk" ${chk(v.resources_available,'DUDI_AKTIF')}> DUDI aktif</label>
-      <div id="kk-dudi-detail" style="display:${(v.resources_available??[]).includes('DUDI_AKTIF')?'block':'none'};margin:4px 0 0 24px">
-        <input type="text" class="input input-sm" name="dudi_name" placeholder="Nama DUDI" value="${esc(v.dudi_name??'')}" style="max-width:280px">
-      </div>
       <label class="pm-radio-row"><input type="checkbox" name="resources_available" value="NARASUMBER" id="kk-narasumber-chk" ${chk(v.resources_available,'NARASUMBER')}> Narasumber industri</label>
       <div id="kk-narasumber-detail" style="display:${(v.resources_available??[]).includes('NARASUMBER')?'block':'none'};margin:4px 0 0 24px">
         <input type="text" class="input input-sm" name="narasumber_detail" placeholder="Detail" value="${esc(v.narasumber_detail??'')}" style="max-width:280px">
@@ -5505,7 +4897,6 @@ function collectKonteksKelas(form, subjectId, ay) {
         learning_constraints: checks('learning_constraints'),
         constraints_detail: txt('constraints_detail'),
         resources_available: checks('resources_available'),
-        dudi_name: txt('dudi_name'),
         narasumber_detail: txt('narasumber_detail'),
         expected_output: output,
         output_detail: output === 'LAINNYA' ? txt('output_detail') : null,
@@ -5578,10 +4969,6 @@ async function openKonteksKelasModal() {
         body.querySelector('#kk-kendala-lain-chk').addEventListener('change', e => {
             body.querySelector('#kk-kendala-lain-detail').style.display = e.target.checked ? '' : 'none';
         });
-        // Kondisional: DUDI
-        body.querySelector('#kk-dudi-chk').addEventListener('change', e => {
-            body.querySelector('#kk-dudi-detail').style.display = e.target.checked ? '' : 'none';
-        });
         // Kondisional: narasumber
         body.querySelector('#kk-narasumber-chk').addEventListener('change', e => {
             body.querySelector('#kk-narasumber-detail').style.display = e.target.checked ? '' : 'none';
@@ -5647,7 +5034,7 @@ async function openKonteksKelasModal() {
 
 // ─── Modal: Konfirmasi Generate ───────────────────────────────
 const PROFIL_LABEL = {
-    instructional_intent: { label: 'Tujuan', map: { PKL:'Persiapan PKL', DUNIA_KERJA:'Persiapan Dunia Kerja', SERTIFIKASI:'Persiapan Sertifikasi', LKS:'Persiapan LKS', KONSEP_DASAR:'Penguatan Konsep Dasar', KEWIRAUSAHAAN:'Projek Kewirausahaan', UMKM:'UMKM Lokal', LITERASI:'Penguatan Literasi', NUMERASI:'Penguatan Numerasi', KOMUNIKASI:'Komunikasi dan Interaksi', PENGEMBANGAN_KARAKTER:'Pengembangan Karakter', PERSIAPAN_AN:'Persiapan Asesmen Nasional', LAINNYA:'Lainnya' } },
+    instructional_intent: { label: 'Tujuan', map: { KONSEP_DASAR:'Penguatan Konsep Dasar', KEWIRAUSAHAAN:'Projek Kewirausahaan', UMKM:'UMKM Lokal', LITERASI:'Penguatan Literasi', NUMERASI:'Penguatan Numerasi', KOMUNIKASI:'Komunikasi dan Interaksi', PENGEMBANGAN_KARAKTER:'Pengembangan Karakter', PERSIAPAN_AN:'Persiapan Asesmen Nasional', LAINNYA:'Lainnya' } },
     assessment_philosophy: { label: 'Cara penilaian', map: { PRAKTIK:'Praktik', PORTOFOLIO:'Portofolio', PRESENTASI:'Presentasi', OBSERVASI:'Observasi', TES_TERTULIS:'Tes Tertulis', KOMBINASI:'Kombinasi' } },
     teaching_style: { label: 'Gaya mengajar', map: { GURU_DOMINAN:'Guru dominan', SISWA_DOMINAN:'Siswa dominan', SEIMBANG:'Seimbang' } },
     learning_model: { label: 'Model', map: { PBL_PROJECT:'Project-Based Learning', PBL_PROBLEM:'Problem-Based Learning', DISCOVERY:'Discovery Learning', CERAMAH_LATIHAN:'Ceramah + Latihan' } },

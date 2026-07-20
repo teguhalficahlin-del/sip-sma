@@ -61,7 +61,6 @@ const PANEL_RENDERERS = {
     students:           renderStudentsPanel,
     alumni:             renderAlumniPanel,
     parents:            renderParentsPanel,
-    dudi:               renderDudiPanel,
     stakeholders:       renderStakeholdersPanel,
     jadwal:             renderJadwalPanel,
     tutupsemester:      () => mountSemesterPanel(panelContent),
@@ -335,7 +334,6 @@ function renderSharePortalPanel() {
         { label: 'Portal Guru & Staf', path: 'guru/index.html' },
         { label: 'Portal Siswa',        path: 'student/index.html' },
         { label: 'Portal Orang Tua',    path: 'parent/index.html' },
-        { label: 'Portal DUDI',         path: 'dudi/index.html' },
         { label: 'Portal Stakeholder',  path: 'stakeholder/index.html' },
     ];
 
@@ -391,7 +389,6 @@ async function renderSetupPanel() {
         { count: stafCount },
         { count: siswaCount },
         { count: alumniCount },
-        { count: dudiCount },
         { count: stakeholderCount },
         { count: jadwalCount },
         linksRaw,
@@ -401,7 +398,6 @@ async function renderSetupPanel() {
         supabase.from('users').select('*', { count: 'exact', head: true }).not('role_type', 'in', '("SISWA","ORTU","DUDI","ADMINISTRATIVE","STAKEHOLDER")').is('deleted_at', null),
         supabase.from('students').select('*', { count: 'exact', head: true }).eq('student_status', 'AKTIF'),
         supabase.from('students').select('*', { count: 'exact', head: true }).eq('student_status', 'LULUS'),
-        supabase.from('users').select('*', { count: 'exact', head: true }).eq('role_type', 'DUDI').is('deleted_at', null),
         supabase.from('users').select('*', { count: 'exact', head: true }).eq('role_type', 'STAKEHOLDER').is('deleted_at', null),
         supabase.from('schedule_templates').select('*', { count: 'exact', head: true }),
         fetchAllRows('student_parents', q => q.select('parent_user_id, students(student_status)')),
@@ -431,7 +427,6 @@ async function renderSetupPanel() {
         { label: 'Alumni',            count: alumniCount,      panel: 'alumni',      portal: null },
         { label: 'Orang Tua Siswa',   count: ortuSiswaCount,   panel: 'parents',     portal: portalUrl('parent/index.html') },
         { label: 'Orang Tua Alumni',  count: ortuAlumniCount,  panel: 'alumni',      portal: null },
-        { label: 'DUDI',              count: dudiCount,        panel: 'dudi',        portal: portalUrl('dudi/index.html') },
         { label: 'Stakeholder',       count: stakeholderCount, panel: 'stakeholders',portal: portalUrl('stakeholder/index.html') },
         { label: 'Jadwal',            count: jadwalCount,      panel: 'jadwal',      portal: null },
     ];
@@ -728,7 +723,7 @@ async function renderClassesPanel() {
     `;
 }
 
-function buildJabatan(u, classMap = new Map(), progMap = new Map()) {
+function buildJabatan(u, classMap = new Map()) {
     const j = [];
     if (u.role_type === 'GURU' || u.teacher_code) j.push('Guru');
     if (u.wali_kelas_class_id) {
@@ -736,34 +731,26 @@ function buildJabatan(u, classMap = new Map(), progMap = new Map()) {
         j.push(kelas ? `Wali Kelas ${kelas}` : 'Wali Kelas');
     }
     if (u.is_bk) j.push('BK');
-    if (u.kaprodi_program_id) {
-        const prog = progMap.get(u.kaprodi_program_id);
-        j.push(prog ? `Kaprodi ${prog}` : 'Kaprodi');
-    }
     if (u.is_kepsek) j.push('Kepsek');
     if (u.is_waka_kurikulum) j.push('Waka Kurikulum');
     if (u.is_waka_kesiswaan) j.push('Waka Kesiswaan');
-    if (u.is_waka_humas) j.push('Waka Humas');
     if (u.role_type === 'KEPSEK' && !j.length) j.push('Kepsek');
     if (u.role_type === 'BK' && !j.includes('BK')) j.push('BK');
     if (u.role_type === 'WAKA_KURIKULUM' && !j.includes('Waka Kurikulum')) j.push('Waka Kurikulum');
     if (u.role_type === 'WAKA_KESISWAAN' && !j.includes('Waka Kesiswaan')) j.push('Waka Kesiswaan');
-    if (u.role_type === 'WAKA_HUMAS' && !j.includes('Waka Humas')) j.push('Waka Humas');
     return j.join(', ') || u.role_type;
 }
 
 async function renderStaffPanel() {
-    const [users, classRows, progRows] = await Promise.all([
+    const [users, classRows] = await Promise.all([
         fetchAllRows('users',
-            q => q.select('user_id, full_name, login_identifier, teacher_code, role_type, is_bk, is_kepsek, is_waka_kurikulum, is_waka_kesiswaan, is_waka_humas, wali_kelas_class_id, kaprodi_program_id, is_active, must_change_password')
+            q => q.select('user_id, full_name, login_identifier, teacher_code, role_type, is_bk, is_kepsek, is_waka_kurikulum, is_waka_kesiswaan, wali_kelas_class_id, is_active, must_change_password')
                   .not('role_type', 'in', '("SISWA","ORTU","DUDI","ADMINISTRATIVE","STAKEHOLDER")')
                   .is('deleted_at', null)
                   .order('full_name')),
         fetchAllRows('classes',       q => q.select('class_id, name')),
-        fetchAllRows('programs', q => q.select('program_id, code, name')),
     ]);
     const classMap = new Map(classRows.map(c => [c.class_id, c.name]));
-    const progMap  = new Map(progRows.map(p => [p.program_id, p.code ?? p.name]));
 
     const aktif    = users.filter(u => u.is_active !== false);
     const nonaktif = users.filter(u => u.is_active === false);
@@ -783,7 +770,7 @@ async function renderStaffPanel() {
             <td>${esc(u.full_name)}${badge}</td>
             <td>${esc(u.login_identifier)}</td>
             <td>${esc(u.teacher_code ?? '—')}</td>
-            <td>${buildJabatan(u, classMap, progMap)}</td>
+            <td>${buildJabatan(u, classMap)}</td>
             <td style="white-space:nowrap">${btn}${resetBtn}</td>
         </tr>`;
     }
@@ -964,7 +951,7 @@ async function renderStaffPanel() {
 
             if (!hasSchedule) {
                 // Bersih — langsung nonaktifkan + cabut jabatan
-                if (!confirm(`Nonaktifkan ${nama}?\n\nSemua jabatan struktural (wali kelas, kaprodi, BK, dll) akan dicabut. Staf ini tidak bisa login sampai diaktifkan kembali.`)) {
+                if (!confirm(`Nonaktifkan ${nama}?\n\nSemua jabatan struktural (wali kelas, BK, dll) akan dicabut. Staf ini tidak bisa login sampai diaktifkan kembali.`)) {
                     btn.disabled = false; btn.textContent = 'Nonaktifkan'; return;
                 }
                 await deactivateStaff(userId);
@@ -1603,11 +1590,6 @@ async function printAlumniRecap(studentId) {
         .map(k => `<tr><td>${ATT_LABEL[k]}</td><td style="text-align:right">${att[k]}</td></tr>`).join('')
         || '<tr><td colspan="2">Tidak ada data kehadiran.</td></tr>';
 
-    const pklRows = recap.pkl.length
-        ? recap.pkl.map(p => `<tr><td>${esc(p.org)}</td><td>${p.start_date ?? '—'} s.d. ${p.end_date ?? '—'}</td>
-            <td>${p.completed ? '✔ Selesai' : 'Berjalan / belum selesai'}</td></tr>`).join('')
-        : '<tr><td colspan="3">Tidak ada data PKL.</td></tr>';
-
     const today = new Date().toLocaleDateString('id-ID', { day:'numeric', month:'long', year:'numeric' });
     const html = `<!DOCTYPE html><html lang="id"><head><meta charset="utf-8">
         <title>Rekap Alumnus — ${esc(s.full_name)}</title>
@@ -1639,9 +1621,6 @@ async function printAlumniRecap(studentId) {
         ${pctHadir !== null ? `<p style="font-size:13px;margin-top:6px">Persentase kehadiran: <strong>${pctHadir}%</strong> (${hadir} dari ${totalAtt} sesi tercatat)</p>` : ''}
         <h2>Catatan Pembinaan</h2>
         <p style="font-size:13px">Catatan positif/prestasi: <strong>${recap.obsPositif}</strong> · Catatan perhatian: <strong>${recap.obsPerhatian}</strong></p>
-        <h2>Praktik Kerja Lapangan (PKL)</h2>
-        <table><thead><tr><th>Tempat (DUDI)</th><th>Periode</th><th>Status</th></tr></thead>
-            <tbody>${pklRows}</tbody></table>
         <p class="foot">Dokumen ini dicetak dari sistem pada ${today}.</p>
         <div style="text-align:center;margin-top:24px"><button onclick="window.print()">Cetak</button></div>
         </body></html>`;
@@ -1650,26 +1629,6 @@ async function printAlumniRecap(studentId) {
     if (!w) throw new Error('Popup diblokir browser. Izinkan popup lalu coba lagi.');
     w.document.write(html);
     w.document.close();
-}
-
-async function renderDudiPanel() {
-    const [{ data: users }, programs] = await Promise.all([
-        supabase.from('users').select('user_id, full_name, dudi_org_name, program_id, must_change_password').eq('role_type', 'DUDI').is('deleted_at', null).order('dudi_org_name'),
-        getPrograms(),
-    ]);
-    const pn = new Map(programs.map(p => [p.program_id, p.name]));
-    const grouped = renderGroupedTable(
-        users ?? [],
-        u => u.program_id ? (pn.get(u.program_id) ?? '—') : 'Tanpa Program / Lintas Program',
-        ['Nama Usaha', 'Penanggung Jawab', 'Aksi'],
-        u => `<tr><td>${u.dudi_org_name ?? '—'}</td><td>${u.full_name}</td><td>${u.must_change_password
-            ? `<span class="badge badge-muted" title="Menunggu pengguna ganti password">Menunggu ganti PW</span>`
-            : `<button class="btn btn-sm btn-secondary user-reset-pw-btn" data-user-id="${u.user_id}" data-nama="${esc(u.full_name)}">Reset PW</button>`}</td></tr>`,
-    );
-    panelContent.innerHTML = `
-        <h3>DUDI (${(users ?? []).length})</h3>
-        ${grouped}
-    `;
 }
 
 async function renderStakeholdersPanel() {
@@ -2055,7 +2014,7 @@ const EXPORT_DEFS = [
         filename: 'export_staf.xlsx',
         async fetch() {
             return fetchAllRows('users',
-                q => q.select('full_name, login_identifier, teacher_code, role_type, is_bk, is_kepsek, is_waka_kurikulum, is_waka_kesiswaan, is_waka_humas, wali_kelas_class_id, kaprodi_program_id')
+                q => q.select('full_name, login_identifier, teacher_code, role_type, is_bk, is_kepsek, is_waka_kurikulum, is_waka_kesiswaan, wali_kelas_class_id')
                       .not('role_type', 'in', '("SISWA","ORTU","DUDI","ADMINISTRATIVE","STAKEHOLDER")')
                       .order('full_name'));
         },
@@ -2101,23 +2060,6 @@ const EXPORT_DEFS = [
         },
         headers: ['NIK', 'Nama'],
         rowOf: u => [u.login_identifier, u.full_name],
-    },
-    {
-        id: 'dudi',
-        label: 'DUDI / Mitra PKL',
-        hint: 'Login, nama usaha, penanggung jawab, program',
-        filename: 'export_dudi.xlsx',
-        async fetch() {
-            const [users, programs] = await Promise.all([
-                fetchAllRows('users',
-                    q => q.select('full_name, login_identifier, dudi_org_name, program_id').eq('role_type', 'DUDI').order('dudi_org_name')),
-                getPrograms(),
-            ]);
-            const pn = new Map(programs.map(p => [p.program_id, p.name]));
-            return users.map(u => ({ ...u, _program: pn.get(u.program_id) ?? '' }));
-        },
-        headers: ['Login', 'Nama Usaha', 'Penanggung Jawab', 'Program Keahlian'],
-        rowOf: u => [u.login_identifier, u.dudi_org_name ?? '', u.full_name, u._program],
     },
 ];
 

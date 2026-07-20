@@ -24,7 +24,7 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
 });
 
 // Semua role_type yang boleh masuk portal ini
-export const GURU_ROLES = ['GURU','WALI_KELAS','BK','KAPRODI','KEPSEK','WAKA_KURIKULUM','WAKA_KESISWAAN','WAKA_HUMAS'];
+export const GURU_ROLES = ['GURU','WALI_KELAS','BK','KEPSEK','WAKA_KURIKULUM','WAKA_KESISWAAN'];
 
 export async function loginWithIdentifier(identifier, password, schoolId = null) {
     const { data: email, error: resolveErr } = await supabase
@@ -93,8 +93,8 @@ export async function getCurrentUserRow(authUser = null) {
         .from('users')
         .select(`
             user_id, school_id, full_name, role_type, login_identifier, teacher_code,
-            wali_kelas_class_id, kaprodi_program_id,
-            is_bk, is_kepsek, is_waka_kurikulum, is_waka_kesiswaan, is_waka_humas, is_active,
+            wali_kelas_class_id,
+            is_bk, is_kepsek, is_waka_kurikulum, is_waka_kesiswaan, is_active,
             must_change_password, last_seen_at, last_seen_ua,
             teaching_assignments(count)
         `)
@@ -113,11 +113,9 @@ export function getJabatan(u) {
     const j = [];
     if (u.role_type === 'WALI_KELAS' || u.wali_kelas_class_id) j.push('wali_kelas');
     if (u.role_type === 'BK'         || u.is_bk)               j.push('bk');
-    if (u.role_type === 'KAPRODI'    || u.kaprodi_program_id)   j.push('kaprodi');
     if (u.role_type === 'WAKA_KESISWAAN' || u.is_waka_kesiswaan) j.push('waka_kesiswaan');
     if (u.role_type === 'WAKA_KURIKULUM' || u.is_waka_kurikulum) j.push('waka_kurikulum');
     if (u.role_type === 'KEPSEK'     || u.is_kepsek)            j.push('kepsek');
-    if (u.role_type === 'WAKA_HUMAS' || u.is_waka_humas)        j.push('waka_humas');
     return j;
 }
 
@@ -125,11 +123,9 @@ export function jabatanLabel(key) {
     return {
         wali_kelas:    'Wali Kelas',
         bk:            'BK',
-        kaprodi:       'Kaprodi',
         waka_kesiswaan:'Waka Kesiswaan',
         waka_kurikulum:'Waka Kurikulum',
         kepsek:        'Kepala Sekolah',
-        waka_humas:    'Waka Humas',
     }[key] ?? key;
 }
 
@@ -183,20 +179,6 @@ export async function getMyClasses(userId, academicYear, semester) {
     return classes.sort((a, b) => a.name.localeCompare(b.name, 'id'));
 }
 
-/**
- * Semua kelas aktif dalam satu program keahlian.
- * Dipakai sebagai fallback rekap untuk Kaprodi yang tidak punya teaching_assignments.
- */
-export async function getClassesByProgram(programId) {
-    const { data, error } = await supabase
-        .from('classes')
-        .select('class_id, name')
-        .eq('program_id', programId)
-        .eq('is_active', true)
-        .order('name');
-    if (error) throw error;
-    return data ?? [];
-}
 
 // ─── SISWA & KEHADIRAN ───────────────────────────────────────
 
@@ -211,9 +193,9 @@ export async function getEnrolledStudents(classId, academicYear) {
         .eq('academic_year', academicYear)
         .is('withdrawn_at', null);
     if (error) throw error;
-    // DROPOUT-1 (Tema I): roster kelas hanya siswa AKTIF — siswa KELUAR/LULUS/PKL
-    // tak ikut diabsen di kelas (PKL diabsen via pkl_attendance). Riwayat mereka
-    // tetap terlihat di tampilan lain; ini hanya menyaring daftar absen harian.
+    // DROPOUT-1 (Tema I): roster kelas hanya siswa AKTIF — siswa KELUAR/LULUS
+    // tak ikut diabsen di kelas. Riwayat mereka tetap terlihat di tampilan lain;
+    // ini hanya menyaring daftar absen harian.
     return (data ?? []).map(r => r.student)
         .filter(s => s && s.student_status === 'AKTIF')
         .sort((a, b) => a.full_name.localeCompare(b.full_name, 'id'));
@@ -272,7 +254,7 @@ export async function getMyStudents(userId, academicYear, semester) {
 
 /**
  * Pencarian siswa sisi-server untuk observer berjangkauan luas
- * (BK / Kaprodi / Waka Kesiswaan / Kepsek) yang mungkin tidak mengajar
+ * (BK / Waka Kesiswaan / Kepsek) yang mungkin tidak mengajar
  * sehingga getMyStudents (berbasis teaching_assignments) kosong.
  * Cakupan hasil dibatasi RLS sesuai peran pemanggil.
  */
@@ -284,7 +266,7 @@ export async function searchStudents(query, schoolId) {
         .from('students')
         .select('student_id, nis, full_name, student_status, class_enrollments(classes(name))')
         .or(`full_name.ilike.${term},nis.ilike.${term}`)
-        .in('student_status', ['AKTIF', 'PKL'])
+        .in('student_status', ['AKTIF'])
         .order('full_name')
         .limit(15);
     if (schoolId) req = req.eq('school_id', schoolId);
@@ -355,8 +337,6 @@ export async function getWaliAttendanceSummary(classId, academicYear, dateStart,
     }));
 }
 
-// ─── KAPRODI (pindahan dari /kaprodi/) ───────────────────────
-
 export async function getProgram(programId) {
     if (!programId) return null;
     const { data, error } = await supabase.from('programs').select('program_id, code, name').eq('program_id', programId).maybeSingle();
@@ -401,189 +381,6 @@ export async function getStudentAttendanceSessions(studentId, dateStart, dateEnd
         .sort((a, b) => (b.schedule.session_date ?? '').localeCompare(a.schedule.session_date ?? ''));
 }
 
-export async function fetchPklStudents(programId) {
-    const { data, error } = await supabase
-        .from('students')
-        .select(`
-            student_id, nis, full_name, student_status,
-            placements:pkl_placements (
-                placement_id, start_date, end_date, is_active,
-                dudi:users!pkl_placements_dudi_user_id_fkey ( user_id, full_name, dudi_org_name )
-            )
-        `)
-        .eq('program_id', programId)
-        .eq('student_status', 'PKL')
-        .order('full_name');
-    if (error) throw error;
-    return (data ?? []).map(s => {
-        const active = (s.placements ?? []).find(p => p.is_active) ?? s.placements?.[0] ?? null;
-        return {
-            student_id:   s.student_id, nis: s.nis, full_name: s.full_name,
-            placement_id: active?.placement_id ?? null,
-            dudi_name:    active?.dudi?.dudi_org_name ?? active?.dudi?.full_name ?? '—',
-            start_date:   active?.start_date ?? null, end_date: active?.end_date ?? null,
-            has_placement: !!active,
-        };
-    });
-}
-
-export async function fetchNonPklStudents(programId) {
-    const { data, error } = await supabase
-        .from('students')
-        .select('student_id, nis, full_name')
-        .eq('program_id', programId)
-        .in('student_status', ['AKTIF'])
-        .order('full_name');
-    if (error) throw error;
-    return data ?? [];
-}
-
-export async function fetchDudiPartners(programId) {
-    const { data, error } = await supabase
-        .from('v_users_staff_directory')
-        .select('user_id, full_name, dudi_org_name')
-        .eq('role_type', 'DUDI')
-        .eq('program_id', programId)
-        .order('dudi_org_name');
-    if (error) throw error;
-    return (data ?? []).map(u => ({ user_id: u.user_id, org_name: u.dudi_org_name ?? u.full_name, pic_name: u.full_name }));
-}
-
-export async function fetchPklAttendance(studentIds, dateStart, dateEnd) {
-    if (!studentIds?.length) return [];
-    const { data, error } = await supabase.rpc('fn_pkl_attendance_recap', {
-        p_student_ids: studentIds,
-        p_date_start:  dateStart ?? null,
-        p_date_end:    dateEnd   ?? null,
-    });
-    if (error) throw error;
-    return (data ?? []).map(r => ({
-        student_id:  r.student_id,
-        HADIR:       Number(r.hadir),
-        ALPA:        Number(r.alpa),
-        IZIN:        Number(r.izin),
-        SAKIT:       Number(r.sakit),
-        total:       Number(r.total),
-    }));
-}
-
-export async function fetchDudiObservations(studentIds) {
-    if (!studentIds?.length) return [];
-    const { data, error } = await supabase
-        .from('observations')
-        .select(`
-            observation_id, student_id, sentiment, dimension, content, observed_at, created_at,
-            author:users!observations_author_user_id_fkey ( full_name, role_type, dudi_org_name )
-        `)
-        .in('student_id', studentIds)
-        .eq('author.role_type', 'DUDI')
-        .order('created_at', { ascending: false })
-        .limit(200);
-    if (error) throw error;
-    return (data ?? [])
-        .filter(r => r.author?.role_type === 'DUDI')
-        .map(r => ({
-            id:         r.observation_id,
-            student_id: r.student_id,
-            sentiment:  r.sentiment,
-            dimension:  r.dimension,
-            content:    r.content,
-            author:     r.author?.dudi_org_name ?? r.author?.full_name ?? '—',
-            date:       r.observed_at ?? r.created_at,
-        }));
-}
-
-// Semua siswa PKL lintas program (untuk Waka Humas)
-export async function fetchAllPklStudents() {
-    const { data, error } = await supabase
-        .from('students')
-        .select(`
-            student_id, nis, full_name, student_status,
-            program:programs ( program_name ),
-            placements:pkl_placements (
-                placement_id, start_date, end_date, is_active,
-                dudi:users!pkl_placements_dudi_user_id_fkey ( user_id, full_name, dudi_org_name )
-            )
-        `)
-        .eq('student_status', 'PKL')
-        .order('full_name');
-    if (error) throw error;
-    return (data ?? []).map(s => {
-        const active = (s.placements ?? []).find(p => p.is_active) ?? s.placements?.[0] ?? null;
-        return {
-            student_id:   s.student_id, nis: s.nis, full_name: s.full_name,
-            program_name: s.program?.program_name ?? '—',
-            placement_id: active?.placement_id ?? null,
-            dudi_name:    active?.dudi?.dudi_org_name ?? active?.dudi?.full_name ?? '—',
-            start_date:   active?.start_date ?? null, end_date: active?.end_date ?? null,
-            has_placement: !!active,
-        };
-    });
-}
-
-// Semua mitra DUDI lintas program (untuk Waka Humas)
-export async function fetchAllDudiPartners() {
-    const { data, error } = await supabase
-        .from('v_users_staff_directory')
-        .select('user_id, full_name, dudi_org_name, program_id')
-        .eq('role_type', 'DUDI')
-        .order('dudi_org_name');
-    if (error) throw error;
-
-    const programIds = [...new Set((data ?? []).map(u => u.program_id).filter(Boolean))];
-    const programNames = {};
-    if (programIds.length) {
-        const { data: progs, error: progErr } = await supabase
-            .from('programs')
-            .select('program_id, name')
-            .in('program_id', programIds);
-        if (progErr) {
-            console.warn('fetchAllDudiPartners: gagal muat nama program, fallback ke —', progErr.message);
-        } else {
-            for (const p of (progs ?? [])) programNames[p.program_id] = p.name;
-        }
-    }
-
-    return (data ?? []).map(u => ({
-        user_id: u.user_id,
-        org_name: u.dudi_org_name ?? u.full_name,
-        pic_name: u.full_name,
-        program_name: u.program_id ? (programNames[u.program_id] ?? '—') : '—',
-    }));
-}
-
-
-export async function createPlacement({ studentId, dudiUserId, startDate, endDate }) {
-    const { error } = await supabase.rpc('fn_create_placement', {
-        p_student_id:   studentId,
-        p_dudi_user_id: dudiUserId,
-        p_start_date:   startDate,
-        p_end_date:     endDate,
-    });
-    if (error) throw error;
-}
-
-export async function finishPlacement(studentId, placementId) {
-    const { error } = await supabase.rpc('fn_finish_placement', {
-        p_student_id:   studentId,
-        p_placement_id: placementId,
-    });
-    if (error) throw error;
-}
-
-export async function bulkImportPkl(csvText) {
-    const { data: authData } = await supabase.auth.getSession();
-    const token = authData?.session?.access_token;
-    if (!token) throw new Error('Sesi tidak valid. Silakan login ulang.');
-    const res = await fetch(`${SUPABASE_URL}/functions/v1/bulk-import-pkl`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'text/csv' },
-        body: csvText,
-    });
-    const json = await res.json();
-    if (!res.ok) throw new Error(json?.error?.message ?? `HTTP ${res.status}`);
-    return json.data;
-}
 
 // ─── KEPSEK / WAKA ──────────────────────────────────────────
 
@@ -680,8 +477,7 @@ export async function getAttendanceRecapPerClass(dateStart, dateEnd) {
 }
 
 /**
- * Rekap akumulasi kehadiran kelas (tabel attendance) untuk daftar student_id tertentu.
- * Dipakai Kaprodi untuk siswa AKTIF di programnya.
+ * Daftar siswa aktif berdasarkan class_id.
  */
 export async function getClassStudents(classId) {
     const { data, error } = await supabase
@@ -952,7 +748,7 @@ export async function removeCaseAudienceMember({ caseId, userId }) {
 }
 
 export async function searchInternalUsers(query) {
-    const INTERNAL_ROLES = ['GURU','BK','WALI_KELAS','KAPRODI','WAKA_KESISWAAN','WAKA_HUMAS','KEPSEK'];
+    const INTERNAL_ROLES = ['GURU','BK','WALI_KELAS','WAKA_KESISWAAN','KEPSEK'];
     const { data, error } = await supabase
         .from('v_users_staff_directory')
         .select('user_id, full_name, role_type')
@@ -1115,17 +911,16 @@ export async function getForumClasses(userId, academicYear) {
 
     // Ambil profil user dulu — dibutuhkan untuk menentukan query selanjutnya
     const { data: u } = await supabase.from('users')
-        .select('wali_kelas_class_id, role_type, program_id, kaprodi_program_id, is_waka_kesiswaan, is_kepsek')
+        .select('wali_kelas_class_id, role_type, is_waka_kesiswaan, is_kepsek')
         .eq('user_id', userId)
         .maybeSingle();
 
     const isOversight = ['WAKA_KESISWAAN', 'KEPSEK', 'ADMINISTRATIVE'].includes(u?.role_type)
         || u?.is_waka_kesiswaan === true
         || u?.is_kepsek === true;
-    const programId = u?.kaprodi_program_id ?? (u?.role_type === 'KAPRODI' ? u?.program_id : null);
 
     // Jalankan semua query independen secara paralel
-    const [cls, ta, bk, gwa, allCls, kpCls] = await Promise.all([
+    const [cls, ta, bk, gwa, allCls] = await Promise.all([
         // 1. Wali kelas
         u?.wali_kelas_class_id
             ? supabase.from('classes').select('class_id, name').eq('class_id', u.wali_kelas_class_id).maybeSingle().then(r => r.data)
@@ -1143,17 +938,12 @@ export async function getForumClasses(userId, academicYear) {
         isOversight
             ? supabase.from('classes').select('class_id, name').eq('academic_year', academicYear).then(r => r.data)
             : Promise.resolve(null),
-        // 6. Kaprodi → kelas program
-        programId
-            ? supabase.from('classes').select('class_id, name').eq('program_id', programId).eq('academic_year', academicYear).then(r => r.data)
-            : Promise.resolve(null),
     ]);
 
     if (cls) classMap.set(cls.class_id, cls.name);
     (ta  ?? []).forEach(r => r.class && classMap.set(r.class.class_id, r.class.name));
     (bk  ?? []).forEach(r => r.class && classMap.set(r.class.class_id, r.class.name));
     (allCls ?? []).forEach(c => classMap.set(c.class_id, c.name));
-    (kpCls  ?? []).forEach(c => classMap.set(c.class_id, c.name));
 
     // 4b. Enrollments — dependen pada hasil gwa, dijalankan setelah batch pertama
     if (gwa?.length) {

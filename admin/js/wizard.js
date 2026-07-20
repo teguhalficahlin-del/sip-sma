@@ -24,7 +24,7 @@ import {
     fetchAllRows,
     updateProgram, updateClass, updateStudent, updateUserIdentifier,
     importPrograms, importClasses, importUsers, importStudents, importSchedules,
-    importParents, importDudi,
+    importParents,
     getForumBkStaff, getForumGuruWaliCandidates,
     getBkAssignments, getGuruWaliAssignments,
     assignBkToClass, revokeBkFromClass,
@@ -55,7 +55,6 @@ const STEP_NAMES = {
     5: 'Staf & Peran',
     6: 'Siswa',
     7: 'Orang Tua',
-    8: 'DUDI',
     9: 'Stakeholder',
     10: 'Jadwal',
     11: 'Penugasan Forum',
@@ -603,8 +602,8 @@ async function importForumGuruWali(csvText) {
             .from('users')
             .select('user_id, login_identifier')
             .in('role_type', [
-                'GURU','BK','WALI_KELAS','KAPRODI','KEPSEK',
-                'WAKA_KURIKULUM','WAKA_KESISWAAN','WAKA_HUMAS',
+                'GURU','BK','WALI_KELAS','KEPSEK',
+                'WAKA_KURIKULUM','WAKA_KESISWAAN',
             ])
             .eq('is_active', true),
     ]);
@@ -1737,23 +1736,6 @@ function escapeAttr(s) {
 // role_type untuk Guru (5) disuntik client-side (lihat importFnForStep),
 // jadi tidak ada di template.
 const EXCEL_TEMPLATES = {
-    3: { filename: 'template_program_keahlian.xlsx',
-         headers: ['kode', 'nama'],
-         exampleRows: [
-             ['TKJ', 'Teknik Komputer dan Jaringan'],
-             ['AKL', 'Akuntansi dan Keuangan Lembaga'],
-         ],
-         guide: [
-             ['PETUNJUK PENGISIAN — PROGRAM KEAHLIAN', '', ''],
-             ['', '', ''],
-             ['Kolom', 'Wajib?', 'Penjelasan'],
-             ['kode', 'Wajib', 'Kode singkat program (maks 20 huruf). Contoh: TKJ, AKL, RPL. Setiap kode harus berbeda.'],
-             ['nama', 'Wajib', 'Nama lengkap program. Contoh: Teknik Komputer dan Jaringan.'],
-             ['', '', ''],
-             ['PENTING', '', ''],
-             ['•', '', 'Upload ulang file yang sama akan memperbarui nama program. Data yang sudah ada tidak diduplikasi.'],
-             ['•', '', 'Jika kode program salah, klik tombol edit (✎) di halaman wizard untuk memperbaiki.'],
-         ] },
     4: { filename: 'template_kelas.xlsx',
          headers: ['nama_kelas', 'kode_program', 'tingkat'],
          exampleRows: [
@@ -1774,14 +1756,13 @@ const EXCEL_TEMPLATES = {
              ['•', '', 'Tahun ajaran diambil otomatis dari Profil Sekolah.'],
          ] },
     5: { filename: 'template_staf.xlsx',
-         headers: ['nama', 'nip_atau_nik', 'mengajar', 'teacher_code', 'wali_kelas', 'program_kaprodi', 'jabatan', 'allow_parallel'],
+         headers: ['nama', 'nip_atau_nik', 'mengajar', 'teacher_code', 'wali_kelas', 'jabatan', 'allow_parallel'],
          exampleRows: [
-             ['Budi Santoso, S.Pd', '198501012010011001', 'YA', 'BSS', '', '', '', ''],
-             ['Ririn Novianti, S.Pd', '198812052015032001', 'YA', 'RRN', 'XII TKJ 1', '', '', ''],
-             ['Supriadi, M.Pd', '197706152003011005', 'YA', 'SPR', '', 'TKJ', '', 'YA'],
-             ['Ahmad Fauzi, M.Pd', '196811051994031005', '', '', '', '', 'KEPSEK', ''],
-             ['Susi Marlina, S.Pd', '198501032010012003', '', '', '', '', 'WAKA_KURIKULUM', ''],
-             ['Dewi Lestari, S.Pd', '198903152012032001', 'YA', 'DWL', '', '', 'BK', ''],
+             ['Budi Santoso, S.Pd', '198501012010011001', 'YA', 'BSS', '', '', ''],
+             ['Ririn Novianti, S.Pd', '198812052015032001', 'YA', 'RRN', 'XII TKJ 1', '', ''],
+             ['Ahmad Fauzi, M.Pd', '196811051994031005', '', '', '', 'KEPSEK', ''],
+             ['Susi Marlina, S.Pd', '198501032010012003', '', '', '', 'WAKA_KURIKULUM', ''],
+             ['Dewi Lestari, S.Pd', '198903152012032001', 'YA', 'DWL', '', 'BK', ''],
          ],
          guide: [
              ['PETUNJUK PENGISIAN — STAF & PERAN', '', ''],
@@ -1792,8 +1773,7 @@ const EXCEL_TEMPLATES = {
              ['mengajar', 'Opsional', 'Isi YA jika staf ini mengajar di kelas. Kosongkan jika tidak mengajar (contoh: Kepsek, Waka).'],
              ['teacher_code', 'Opsional', 'Kode singkat guru untuk jadwal (contoh: BSS, RRN). Jika mengajar=YA tapi kolom ini kosong, sistem akan buatkan kode otomatis.'],
              ['wali_kelas', 'Opsional', 'Isi nama kelas jika staf ini wali kelas. Contoh: XII TKJ 1. Nama kelas harus sudah ada di langkah Kelas.'],
-             ['program_kaprodi', 'Opsional', 'Isi kode program jika staf ini Kepala Program (Kaprodi). Contoh: TKJ. Kode harus sudah ada di langkah Program.'],
-             ['jabatan', 'Opsional', 'Jabatan tambahan. Jika lebih dari satu, pisahkan dengan koma. Pilihan: BK, KEPSEK, WAKA_KURIKULUM, WAKA_KESISWAAN, WAKA_HUMAS'],
+             ['jabatan', 'Opsional', 'Jabatan tambahan. Jika lebih dari satu, pisahkan dengan koma. Pilihan: BK, KEPSEK, WAKA_KURIKULUM, WAKA_KESISWAAN'],
              ['allow_parallel', 'Opsional', 'Isi YA jika guru boleh mengajar paralel (moving class / team teaching). Kosongkan untuk guru biasa.'],
              ['', '', ''],
              ['PENTING', '', ''],
@@ -1840,25 +1820,6 @@ const EXCEL_TEMPLATES = {
              ['•', '', 'Satu orang tua punya beberapa anak? Tulis NIK yang sama di beberapa baris, masing-masing dengan NIS anak yang berbeda.'],
              ['•', '', 'Orang tua login di Portal Orang Tua menggunakan NIK + password. Setelah login, orang tua bisa melihat data semua anaknya.'],
              ['•', '', 'Upload ulang file yang sama akan memperbarui nama. Jika NIK salah, hapus lalu impor ulang.'],
-         ] },
-    8: { filename: 'template_dudi.xlsx',
-         headers: ['nama_usaha', 'nama_penanggung_jawab', 'kode_program'],
-         exampleRows: [
-             ['PT Mitra Teknologi Nusantara', 'Hendra Setiawan', 'TKJ'],
-             ['CV Karya Mandiri Elektronik', 'Yulia Permatasari', 'TKJ'],
-         ],
-         guide: [
-             ['PETUNJUK PENGISIAN — DUDI (Mitra PKL)', '', ''],
-             ['', '', ''],
-             ['Kolom', 'Wajib?', 'Penjelasan'],
-             ['nama_usaha', 'Wajib', 'Nama lengkap usaha atau perusahaan mitra PKL. Nama ini menjadi identitas login DUDI.'],
-             ['nama_penanggung_jawab', 'Wajib', 'Nama penanggung jawab dari pihak usaha.'],
-             ['kode_program', 'Opsional', 'Kode program keahlian yang menaungi DUDI ini (mis. TKJ, AKL). Menautkan DUDI ke Kaprodi program tersebut sehingga muncul sebagai mitra di dashboard Kaprodi. Kosongkan bila DUDI lintas program.'],
-             ['', '', ''],
-             ['PENTING', '', ''],
-             ['•', '', 'DUDI login menggunakan nama usaha (bukan NIK). Sistem otomatis membuat kode login dari nama usaha.'],
-             ['•', '', 'kode_program harus sudah ada di langkah Program Keahlian. Bila diisi tapi kode tidak dikenal, baris tersebut ditolak.'],
-             ['•', '', 'Upload ulang file yang sama akan memperbarui nama usaha, penanggung jawab, dan program.'],
          ] },
     11: {
         filename: 'template_penugasan_forum.xlsx',
@@ -1967,8 +1928,6 @@ const IMPORT_STEP_INFO = {
          desc: 'Unduh template, isi data, lalu unggah. Panduan pengisian ada di sheet PETUNJUK dalam template.' },
     7: { title: 'Orang Tua',
          desc: 'Unduh template, isi data, lalu unggah. Panduan pengisian ada di sheet PETUNJUK dalam template.' },
-    8: { title: 'DUDI',
-         desc: 'Unduh template, isi data, lalu unggah. Panduan pengisian ada di sheet PETUNJUK dalam template.' },
     11: {
         title: 'Penugasan Forum Kelas',
         desc: 'Impor penugasan BK per kelas dan Guru Wali per siswa. Gunakan dua template terpisah.',
@@ -1984,7 +1943,6 @@ function importFnForStep(step) {
         case 5: return importUsers;
         case 6: return importStudents;
         case 7: return importParents;
-        case 8: return importDudi;
         case 11: // ditangani manual di renderForumAssignmentStep
             return null;
         default: throw new Error(`Tidak ada importer untuk langkah ${step}`);
@@ -2231,7 +2189,7 @@ const STEP_LIST = {
         save: (id, vals) => updateUserIdentifier(id, vals),
         fetch: async () => {
             const data = await fetchAllRows('users',
-                q => q.select('user_id, full_name, login_identifier, teacher_code, role_type, is_bk, is_kepsek, is_waka_kurikulum, is_waka_kesiswaan, is_waka_humas, wali_kelas_class_id, kaprodi_program_id')
+                q => q.select('user_id, full_name, login_identifier, teacher_code, role_type, is_bk, is_kepsek, is_waka_kurikulum, is_waka_kesiswaan, wali_kelas_class_id')
                       .not('role_type', 'in', '("SISWA","ORTU","DUDI","ADMINISTRATIVE")')
                       .is('deleted_at', null)
                       .order('full_name'));
@@ -2240,11 +2198,9 @@ const STEP_LIST = {
                 if (u.role_type === 'GURU' || u.teacher_code) jabatan.push('Guru');
                 if (u.wali_kelas_class_id) jabatan.push('Wali Kelas');
                 if (u.is_bk) jabatan.push('BK');
-                if (u.kaprodi_program_id) jabatan.push('Kaprodi');
                 if (u.is_kepsek) jabatan.push('Kepsek');
                 if (u.is_waka_kurikulum) jabatan.push('Waka Kurikulum');
                 if (u.is_waka_kesiswaan) jabatan.push('Waka Kesiswaan');
-                if (u.is_waka_humas) jabatan.push('Waka Humas');
                 if (u.role_type === 'STAKEHOLDER') jabatan.push('Stakeholder');
                 return {
                     id: u.user_id,
@@ -2348,34 +2304,6 @@ const STEP_LIST = {
                 .filter(Boolean);
         },
         afterRender: renderAlumniParentsSection,
-    },
-    8: {
-        title: 'DUDI terdaftar',
-        headers: ['Nama Usaha', 'Penanggung Jawab'],
-        deleteTable: 'users',
-        groupBy: 'group',
-        editFields: [
-            { key: 'dudi_org_name', label: 'Nama Usaha' },
-            { key: 'full_name', label: 'Penanggung Jawab' },
-        ],
-        save: (id, vals) => updateUserIdentifier(id, vals),
-        fetch: async () => {
-            const [data, programs] = await Promise.all([
-                fetchAllRows('users',
-                    q => q.select('user_id, full_name, dudi_org_name, program_id')
-                          .eq('role_type', 'DUDI')
-                          .is('deleted_at', null)
-                          .order('dudi_org_name')),
-                getPrograms(),
-            ]);
-            const pn = new Map(programs.map(p => [p.program_id, p.name]));
-            return data.map(u => ({
-                id: u.user_id,
-                cells: [u.dudi_org_name ?? '—', u.full_name],
-                group: u.program_id ? (pn.get(u.program_id) ?? '—') : 'Tanpa Program / Lintas Program',
-                editData: { dudi_org_name: u.dudi_org_name ?? '', full_name: u.full_name },
-            }));
-        },
     },
     9: {
         title: 'Stakeholder terdaftar',
@@ -2922,10 +2850,6 @@ const DELETE_ORDER_CHECKS = {
         { label: 'Kehadiran',   table: 'attendance',    query: q => q.select('attendance_id', { count: 'exact', head: true }) },
         { label: 'Observasi',   table: 'observations',  query: q => q.select('observation_id', { count: 'exact', head: true }) },
         { label: 'Kasus',       table: 'cases',         query: q => q.select('case_id', { count: 'exact', head: true }) },
-        { label: 'PKL',         table: 'pkl_placements', query: q => q.select('placement_id', { count: 'exact', head: true }) },
-    ],
-    8: [ // DUDI: PKL harus kosong
-        { label: 'PKL',         table: 'pkl_placements', query: q => q.select('placement_id', { count: 'exact', head: true }) },
     ],
     10: [ // Jadwal: data transaksional harus kosong
         { label: 'Kehadiran',       table: 'attendance',           query: q => q.select('attendance_id', { count: 'exact', head: true }) },

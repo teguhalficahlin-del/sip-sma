@@ -251,36 +251,6 @@ export async function fetchCases(studentId) {
     }));
 }
 
-export async function fetchPklPlacement(studentId) {
-    const { data, error } = await supabase
-        .from('pkl_placements')
-        .select(`
-            placement_id, start_date, end_date,
-            dudi:users!pkl_placements_dudi_user_id_fkey ( full_name, dudi_org_name )
-        `)
-        .eq('student_id', studentId)
-        .eq('is_active', true)
-        .maybeSingle();
-    if (error) throw error;
-    if (!data) return null;
-    return {
-        placement_id: data.placement_id,
-        start_date:   data.start_date,
-        end_date:     data.end_date,
-        dudi_name:    data.dudi?.dudi_org_name ?? data.dudi?.full_name ?? '-',
-    };
-}
-
-export async function fetchPklAttendanceSummary(studentId) {
-    const { data, error } = await supabase
-        .from('pkl_attendance')
-        .select('pkl_attendance_id, attendance_date, status, notes')
-        .eq('student_id', studentId)
-        .order('attendance_date', { ascending: false });
-    if (error) throw error;
-    return data ?? [];
-}
-
 export async function getUnreadNotifCount() {
     const { data, error } = await supabase.rpc('fn_count_unread_notifications');
     if (error) throw error;

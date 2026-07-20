@@ -324,10 +324,9 @@ async function onOpenNextSemester(container, closedPeriod, config) {
                     <li>
                         <strong>Cek dan update data aktor:</strong>
                         <ul style="margin-top:0.5rem; line-height:2rem;">
-                            <li>Siswa — update status PKL, kembali dari PKL, atau keluar</li>
+                            <li>Siswa — pastikan status aktif atau keluar sudah sesuai</li>
                             <li>Guru &amp; Staf — pastikan data aktif dan penugasan kelas sudah sesuai</li>
                             <li>Orang Tua — pastikan relasi ke siswa aktif sudah terdaftar</li>
-                            <li>DUDI — tambahkan tempat PKL baru jika ada</li>
                         </ul>
                     </li>
                     <li>

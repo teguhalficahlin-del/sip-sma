@@ -78,7 +78,6 @@ function renderHealthBadges(h) {
         ${jabatanBadge('Kepsek', h.kepsek_count)}
         ${jabatanBadge('Waka Kur.', h.waka_kurikulum_count)}
         ${jabatanBadge('Waka Kes.', h.waka_kesiswaan_count)}
-        ${jabatanBadge('Waka Humas', h.waka_humas_count)}
       </div>
       <div class="health-row health-counts">
         <span class="hstat"><strong>${h.staff_count}</strong> staf</span>

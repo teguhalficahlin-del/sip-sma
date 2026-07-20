@@ -97,11 +97,11 @@ export async function cancelAcademicYear(configId) {
 
 /**
  * Rekap lengkap seorang alumnus untuk dokumen/surat keterangan (10.2/10.3):
- * identitas, rekap kehadiran (per status), rekap observasi (positif/perhatian),
- * dan riwayat PKL. Semua mengecualikan entri yang di-void.
+ * identitas, rekap kehadiran (per status), dan rekap observasi (positif/perhatian).
+ * Semua mengecualikan entri yang di-void.
  */
 export async function getAlumniRecap(studentId) {
-    const [stuRes, attRes, obsRes, pklRes] = await Promise.all([
+    const [stuRes, attRes, obsRes] = await Promise.all([
         supabase.from('students')
             .select(`full_name, nis, graduated_academic_year, graduated_at, student_status,
                 program:programs ( name ),
@@ -109,9 +109,6 @@ export async function getAlumniRecap(studentId) {
             .eq('student_id', studentId).maybeSingle(),
         supabase.from('attendance').select('status').eq('student_id', studentId).eq('is_void', false),
         supabase.from('observations').select('sentiment').eq('student_id', studentId).eq('is_void', false),
-        supabase.from('pkl_placements')
-            .select('start_date, end_date, is_active, dudi_user_id')
-            .eq('student_id', studentId).order('start_date', { ascending: false }),
     ]);
 
     if (stuRes.error) throw stuRes.error;
@@ -126,23 +123,7 @@ export async function getAlumniRecap(studentId) {
         if (o.sentiment === 'POSITIF') obsPositif++; else obsPerhatian++;
     }
 
-    // Nama DUDI untuk tiap penempatan PKL (lookup terpisah agar tak bergantung nama FK)
-    const placements = pklRes.data ?? [];
-    const dudiIds = [...new Set(placements.map(p => p.dudi_user_id).filter(Boolean))];
-    const dudiNames = {};
-    if (dudiIds.length) {
-        const { data: dudis } = await supabase.from('v_users_staff_directory')
-            .select('user_id, full_name, dudi_org_name').in('user_id', dudiIds);
-        for (const d of (dudis ?? [])) dudiNames[d.user_id] = d.dudi_org_name || d.full_name;
-    }
-    const pkl = placements.map(p => ({
-        org:       dudiNames[p.dudi_user_id] ?? '—',
-        start_date: p.start_date,
-        end_date:   p.end_date,
-        completed:  !p.is_active && !!p.end_date,
-    }));
-
-    return { student, attendance, obsPositif, obsPerhatian, pkl };
+    return { student, attendance, obsPositif, obsPerhatian };
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -164,7 +145,7 @@ export async function markStudentKeluar(studentId, note) {
         .from('students')
         .update({ student_status: 'KELUAR', keluar_at: new Date().toISOString(), keluar_note: note || null })
         .eq('student_id', studentId)
-        .in('student_status', ['AKTIF', 'PKL']);
+        .eq('student_status', 'AKTIF');
     if (error) throw error;
 }
 
@@ -625,7 +606,6 @@ export function importClasses(csvText)   { return callBulkImport('bulk-import-cl
 export function importStudents(csvText)  { return callBulkImport('bulk-import-students', csvText); }
 export function importSchedules(csvText) { return callBulkImport('bulk-import-schedules', csvText); }
 export function importParents(csvText)   { return callBulkImport('bulk-import-parents', csvText); }
-export function importDudi(csvText)      { return callBulkImport('bulk-import-dudi', csvText); }
 
 /**
  * Jumlah siswa yang belum punya akun login (students.user_id IS NULL).
@@ -810,8 +790,6 @@ const DEPENDENCY_LABELS = {
     student_parents:      'data orang tua',
     substitute_schedules: 'jadwal guru pengganti',
     schedule_templates:   'template jadwal',
-    pkl_placements:       'penempatan PKL',
-    pkl_attendance:       'absensi PKL',
 };
 
 // Dependency check HANYA untuk tabel yang TIDAK di-cascade otomatis.
@@ -834,8 +812,6 @@ const DEPENDENCY_MAP = {
         { table: 'attendance',        column: 'student_id' },
         { table: 'observations',      column: 'student_id' },
         { table: 'cases',             column: 'student_id' },
-        { table: 'pkl_placements',    column: 'student_id' },
-        { table: 'pkl_attendance',    column: 'student_id' },
     ],
     teaching_schedules: [
         { table: 'attendance',           column: 'schedule_id' },
@@ -1007,9 +983,7 @@ export async function deactivateStaff(user_id) {
             is_kepsek:          false,
             is_waka_kurikulum:  false,
             is_waka_kesiswaan:  false,
-            is_waka_humas:      false,
             wali_kelas_class_id: null,
-            kaprodi_program_id:  null,
         })
         .eq('user_id', user_id);
     if (error) throw error;
@@ -1091,8 +1065,8 @@ export async function getForumBkStaff() {
 /** Ambil semua staf non-admin aktif sebagai kandidat Guru Wali. */
 export async function getForumGuruWaliCandidates() {
     const INTERNAL_ROLES = [
-        'GURU','BK','WALI_KELAS','KAPRODI','KEPSEK',
-        'WAKA_KURIKULUM','WAKA_KESISWAAN','WAKA_HUMAS',
+        'GURU','BK','WALI_KELAS','KEPSEK',
+        'WAKA_KURIKULUM','WAKA_KESISWAAN',
     ];
     const { data, error } = await supabase
         .from('v_users_staff_directory')

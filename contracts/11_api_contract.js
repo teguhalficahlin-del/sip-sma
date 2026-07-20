@@ -616,14 +616,13 @@ const PROVISION_USER_FIELDS = [
                             ? null : 'email must be a valid email address'],
     ['full_name', (v) => FT.str(v, 'full_name', 2, 150)],
     ['role_type', (v) => FT.enum(v, 'role_type',
-                    ['GURU','BK','WALI_KELAS','KAPRODI','KEPSEK','DUDI','SISWA','ORTU',
+                    ['GURU','BK','WALI_KELAS','KEPSEK','SISWA','ORTU',
                      'ADMINISTRATIVE','STAKEHOLDER','WAKA_KURIKULUM','WAKA_KESISWAAN'])],
 ];
 
 const PROVISION_USER_OPTIONAL = [
     ['program_id',          (v) => FT.uuid(v, 'program_id')],
     ['wali_kelas_class_id', (v) => FT.uuid(v, 'wali_kelas_class_id')],
-    ['dudi_org_name',       (v) => FT.str(v, 'dudi_org_name', 2, 150)],
     ['student_id',          (v) => FT.uuid(v, 'student_id')],        // link existing student
     ['parent_student_id',   (v) => FT.uuid(v, 'parent_student_id')], // for ORTU: link to student
 ];

@@ -37,16 +37,15 @@
  *   status                string  one of CASE_STATUS
  *   current_handler_role  string  one of ROLE_TYPE
  *   is_locked             boolean
- *   track                 string  'SEKOLAH' | 'PKL'
+ *   track                 string  'SEKOLAH'
  *   student_id            string  UUID
  *   initiated_by_role     string  one of ROLE_TYPE
  *   involved_user_ids     string[]  UUIDs of users who authored any event
  *
  * StudentContext:
  *   student_id            string  UUID
- *   student_status        string  'AKTIF' | 'PKL' | 'LULUS' | 'KELUAR'
+ *   student_status        string  'AKTIF' | 'LULUS' | 'KELUAR'
  *   class_id              string|null  current active enrollment class
- *   pkl_dudi_user_id      string|null  UUID of DUDI supervisor (if PKL)
  *
  * ScheduleContext:
  *   schedule_id           string  UUID
@@ -179,17 +178,6 @@ function hasAssignmentForStudent(userCtx, studentCtx, assignmentCtx) {
 }
 
 /**
- * True if DUDI user supervises this student's PKL placement.
- * Maps to permission matrix footnote ‡
- */
-function dudiSupervisesStudent(userCtx, studentCtx) {
-    return (
-        userCtx.role_type === ROLE_TYPE.DUDI &&
-        studentCtx?.pkl_dudi_user_id === userCtx.user_id
-    );
-}
-
-/**
  * True if user is the Wali Kelas for the student's current class.
  */
 function isWaliKelasForStudent(userCtx, studentCtx) {
@@ -221,7 +209,7 @@ function isAssignedTeacher(userCtx, scheduleCtx) {
  * PENUNTUN (advisory): peran "berikutnya yang disarankan" di rantai — untuk
  * saran UI saja. Sejak desain Langkah A (mig 20260703250000) eskalasi antar-
  * internal BEBAS (tak dibatasi urutan ini); penegakan sesungguhnya di server
- * (target wajib peran internal; DUDI hanya -> KAPRODI). Null bila di ujung.
+ * (target wajib peran internal). Null bila di ujung.
  */
 function nextEscalationStep(track, currentHandlerRole) {
     const chain = ESCALATION_CHAIN[track];
@@ -247,7 +235,7 @@ function checkCaseView(userCtx, caseCtx, studentCtx, assignmentCtx) {
     }
 
     // Admin roles: always
-    if ([ROLE_TYPE.BK, ROLE_TYPE.WALI_KELAS, ROLE_TYPE.KAPRODI, ROLE_TYPE.KEPSEK]
+    if ([ROLE_TYPE.BK, ROLE_TYPE.WALI_KELAS, ROLE_TYPE.KEPSEK]
             .includes(role)) {
         return allow();
     }
@@ -262,12 +250,6 @@ function checkCaseView(userCtx, caseCtx, studentCtx, assignmentCtx) {
             'Guru hanya dapat melihat kasus siswa yang diajarnya atau kasus yang pernah melibatkannya',
             'GURU_NO_ACCESS'
         );
-    }
-
-    // DUDI: only their PKL students (‡)
-    if (role === ROLE_TYPE.DUDI) {
-        if (dudiSupervisesStudent(userCtx, studentCtx)) return allow();
-        return deny('DUDI hanya dapat melihat kasus siswa PKL yang dibimbingnya', 'DUDI_NOT_SUPERVISOR');
     }
 
     // SISWA: own cases only (§), non-closed only here (closed handled above)
@@ -287,11 +269,11 @@ function checkCaseView(userCtx, caseCtx, studentCtx, assignmentCtx) {
 
 function checkCaseCreate(userCtx) {
     const role = userCtx.role_type;
-    if ([ROLE_TYPE.GURU, ROLE_TYPE.KEPSEK, ROLE_TYPE.DUDI].includes(role)) {
+    if ([ROLE_TYPE.GURU, ROLE_TYPE.KEPSEK].includes(role)) {
         return allow();
     }
     return deny(
-        `Role '${role}' tidak dapat membuat kasus baru. Hanya GURU, KEPSEK, atau DUDI.`,
+        `Role '${role}' tidak dapat membuat kasus baru. Hanya GURU atau KEPSEK.`,
         'ROLE_CANNOT_CREATE_CASE'
     );
 }
@@ -308,7 +290,7 @@ function checkCaseAddComment(userCtx, caseCtx) {
     // Must be a role that participates in cases
     const participatingRoles = [
         ROLE_TYPE.GURU, ROLE_TYPE.BK, ROLE_TYPE.WALI_KELAS,
-        ROLE_TYPE.KAPRODI, ROLE_TYPE.KEPSEK, ROLE_TYPE.DUDI,
+        ROLE_TYPE.KEPSEK,
     ];
     if (!participatingRoles.includes(role)) {
         return deny(`Role '${role}' tidak dapat menambahkan komentar ke kasus`, 'ROLE_CANNOT_COMMENT');
@@ -493,7 +475,7 @@ function checkAttendanceView(userCtx) {
     const role = userCtx.role_type;
 
     if ([ROLE_TYPE.GURU, ROLE_TYPE.BK, ROLE_TYPE.WALI_KELAS,
-         ROLE_TYPE.KAPRODI, ROLE_TYPE.KEPSEK].includes(role)) {
+         ROLE_TYPE.KEPSEK].includes(role)) {
         return allow();
     }
 
@@ -511,7 +493,7 @@ function checkAttendanceView(userCtx) {
 function checkObservationCreate(userCtx) {
     const role = userCtx.role_type;
     if ([ROLE_TYPE.GURU, ROLE_TYPE.WALI_KELAS, ROLE_TYPE.BK,
-         ROLE_TYPE.KAPRODI, ROLE_TYPE.KEPSEK].includes(role)) {
+         ROLE_TYPE.KEPSEK].includes(role)) {
         return allow();
     }
     return deny(
@@ -523,7 +505,7 @@ function checkObservationCreate(userCtx) {
 function checkObservationViewAll(userCtx) {
     const role = userCtx.role_type;
     if ([ROLE_TYPE.GURU, ROLE_TYPE.BK, ROLE_TYPE.WALI_KELAS,
-         ROLE_TYPE.KAPRODI, ROLE_TYPE.KEPSEK].includes(role)) {
+         ROLE_TYPE.KEPSEK].includes(role)) {
         return allow();
     }
     return deny('Akses ditolak', 'ROLE_CANNOT_VIEW_ALL_OBSERVATIONS');
@@ -543,7 +525,7 @@ function checkObservationViewPublic(userCtx) {
 function checkAchievementCreate(userCtx, studentCtx) {
     const role = userCtx.role_type;
 
-    if ([ROLE_TYPE.KAPRODI, ROLE_TYPE.KEPSEK].includes(role)) return allow();
+    if (role === ROLE_TYPE.KEPSEK) return allow();
 
     if (role === ROLE_TYPE.WALI_KELAS) {
         if (isWaliKelasForStudent(userCtx, studentCtx)) {
@@ -556,7 +538,7 @@ function checkAchievementCreate(userCtx, studentCtx) {
     }
 
     return deny(
-        `Role '${role}' tidak dapat mencatat prestasi. Hanya Wali Kelas, Kaprodi, atau Kepsek.`,
+        `Role '${role}' tidak dapat mencatat prestasi. Hanya Wali Kelas atau Kepsek.`,
         'ROLE_CANNOT_CREATE_ACHIEVEMENT'
     );
 }
@@ -565,17 +547,17 @@ function checkAchievementView(userCtx) {
     const role = userCtx.role_type;
     // All staff + SISWA (own, filtered at query)
     if ([ROLE_TYPE.GURU, ROLE_TYPE.BK, ROLE_TYPE.WALI_KELAS,
-         ROLE_TYPE.KAPRODI, ROLE_TYPE.KEPSEK, ROLE_TYPE.SISWA].includes(role)) {
+         ROLE_TYPE.KEPSEK, ROLE_TYPE.SISWA].includes(role)) {
         return allow();
     }
     return deny('Role ini tidak memiliki akses ke data prestasi', 'ROLE_CANNOT_VIEW_ACHIEVEMENTS');
 }
 
 function checkAchievementVoid(userCtx) {
-    if ([ROLE_TYPE.KAPRODI, ROLE_TYPE.KEPSEK].includes(userCtx.role_type)) {
+    if (userCtx.role_type === ROLE_TYPE.KEPSEK) {
         return allow();
     }
-    return deny('Hanya Kaprodi atau Kepsek yang dapat membatalkan pencatatan prestasi', 'ROLE_CANNOT_VOID');
+    return deny('Hanya Kepsek yang dapat membatalkan pencatatan prestasi', 'ROLE_CANNOT_VOID');
 }
 
 
@@ -591,7 +573,7 @@ function checkParentMsgSend(userCtx) {
 function checkParentMsgReply(userCtx) {
     const role = userCtx.role_type;
     if ([ROLE_TYPE.GURU, ROLE_TYPE.BK, ROLE_TYPE.WALI_KELAS,
-         ROLE_TYPE.KAPRODI, ROLE_TYPE.KEPSEK].includes(role)) {
+         ROLE_TYPE.KEPSEK].includes(role)) {
         return allow();
     }
     return deny('Role ini tidak dapat membalas pesan orang tua', 'ROLE_CANNOT_REPLY');
@@ -603,7 +585,7 @@ function checkParentMsgView(userCtx) {
     const role = userCtx.role_type;
     if (role === ROLE_TYPE.ORTU) return allow('Orang tua dapat melihat pesan yang ditujukan untuknya');
     if ([ROLE_TYPE.GURU, ROLE_TYPE.BK, ROLE_TYPE.WALI_KELAS,
-         ROLE_TYPE.KAPRODI, ROLE_TYPE.KEPSEK].includes(role)) {
+         ROLE_TYPE.KEPSEK].includes(role)) {
         return allow('Staf dapat melihat pesan yang ditujukan untuknya');
     }
     return deny('Role ini tidak memiliki akses ke pesan orang tua', 'ROLE_CANNOT_VIEW_MESSAGES');
@@ -638,7 +620,7 @@ function checkDashboardKepsek(userCtx) {
 
 function checkDashboardGuru(userCtx) {
     if ([ROLE_TYPE.GURU, ROLE_TYPE.WALI_KELAS, ROLE_TYPE.BK,
-         ROLE_TYPE.KAPRODI, ROLE_TYPE.KEPSEK].includes(userCtx.role_type)) {
+         ROLE_TYPE.KEPSEK].includes(userCtx.role_type)) {
         return allow();
     }
     return deny('Akses dashboard guru tidak tersedia untuk role ini', 'ROLE_NO_GURU_DASHBOARD');
