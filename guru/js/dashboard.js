@@ -10,7 +10,7 @@ import {
     supabase, logout, getCurrentUserRow, GURU_ROLES,
     listSchoolAdmins, addSchoolAdmin, removeSchoolAdmin,
     getJabatan, jabatanLabel, getSchoolConfig,
-    getMyScheduleForDate, getEnrolledStudents, getMyClasses, getClassesByProgram,
+    getMyScheduleForDate, getEnrolledStudents, getMyClasses,
     getAttendanceForSession,
     getMyStudents, searchStudents, insertObservation,
     getWaliKelasInfo, getWaliAttendanceSummary,
