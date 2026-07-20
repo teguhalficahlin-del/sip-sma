@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Portal Orang Tua — SIP</title>
+    <meta property="og:title" content="SIP" />
+    <meta property="og:description" content="Platform monitoring siswa SMK — absensi, kasus, observasi, dan komunikasi sekolah dalam satu sistem." />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="SIP" />
+    <link rel="icon" href="data:,">
+  <script src="js/sw-guard.js"></script>
+<script>(function(){var last=location.pathname.split("/").filter(Boolean).pop();if(["admin","guru","student","parent","dudi","stakeholder","superadmin"].indexOf(last)>-1){var b=document.createElement("base");b.href=location.pathname.endsWith("/")?location.pathname:location.pathname+"/";document.head.appendChild(b);}})();</script>
+    <link rel="stylesheet" href="css/parent.css" />
+  <link rel="manifest" href="manifest.json">
+</head>
+<body>
+    <div class="portal-shell">
+        <header class="topbar">
+            <div>
+                <h2 id="portal-title">Portal Orang Tua</h2>
+                <p id="portal-user-name"><span data-brand="school-name"></span></p>
+                <span id="child-status-badge" class="child-status-badge" style="display:none"></span>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px">
+                <div style="position:relative">
+                    <button id="notif-bell-btn" type="button" class="btn btn-secondary" title="Notifikasi" aria-label="Buka notifikasi" style="font-size:16px;padding:6px 10px">🔔</button>
+                    <div id="notif-dropdown" class="notif-dropdown" style="display:none"></div>
+                </div>
+                <button id="logout-btn" type="button" class="btn btn-secondary">Keluar</button>
+            </div>
+        </header>
+
+        <div id="child-selector" class="child-selector" style="display:none">
+            <label for="select-child">Pilih Anak:</label>
+            <select id="select-child" class="input"></select>
+        </div>
+
+        <div id="loading" class="loading">Memuat data...</div>
+
+        <nav id="tab-nav" class="tab-nav" style="display:none">
+            <button class="tab-btn" data-tab="section-pkl">PKL</button>
+            <button class="tab-btn" data-tab="section-schedule">Jadwal</button>
+            <button class="tab-btn" data-tab="section-attendance">Kehadiran</button>
+            <button class="tab-btn" data-tab="section-observations">Catatan Guru</button>
+            <button class="tab-btn" data-tab="section-cases">Kasus</button>
+            <button class="tab-btn" data-tab="section-forum">Forum</button>
+        </nav>
+
+        <section id="section-pkl" class="section" style="display:none">
+            <h3>Informasi PKL</h3>
+            <div id="pkl-info"></div>
+            <div id="pkl-attendance-wrap" style="display:none">
+                <h3 style="margin-top:16px;font-size:14px;margin-bottom:10px">Absensi PKL (30 hari terakhir)</h3>
+                <div class="summary-cards" id="pkl-summary"></div>
+                <table class="data-table" id="pkl-table">
+                    <thead>
+                        <tr><th>Tanggal</th><th>Status</th><th>Catatan</th></tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+                <p id="pkl-empty" class="hint" style="display:none">Belum ada catatan absensi PKL dalam 30 hari terakhir.</p>
+            </div>
+        </section>
+
+        <section id="section-schedule" class="section" style="display:none">
+            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:10px">
+                <h3 style="margin:0">Jadwal Pelajaran</h3>
+                <div style="display:flex;gap:4px">
+                    <button class="btn btn-sm btn-primary sched-view-btn active" data-view="hari">Hari ini</button>
+                    <button class="btn btn-sm btn-secondary sched-view-btn" data-view="minggu">Minggu ini</button>
+                </div>
+            </div>
+            <div id="sched-view-hari-panel">
+                <input type="date" id="schedule-date" style="display:none">
+                <div id="sched-content"><p class="hint">Memuat jadwal…</p></div>
+            </div>
+            <div id="sched-view-minggu-panel" style="display:none">
+                <div id="sched-week-content"><p class="hint">Memuat jadwal minggu ini…</p></div>
+            </div>
+        </section>
+
+        <section id="section-attendance" class="section" style="display:none">
+            <h3>Kehadiran</h3>
+            <div class="filter-row">
+                <div class="field" style="margin-bottom:0">
+                    <label for="filter-date-start">Dari</label>
+                    <input id="filter-date-start" class="input" type="date" />
+                </div>
+                <div class="field" style="margin-bottom:0">
+                    <label for="filter-date-end">Sampai</label>
+                    <input id="filter-date-end" class="input" type="date" />
+                </div>
+                <button id="btn-filter" class="btn btn-primary">Tampilkan</button>
+            </div>
+            <div class="summary-cards" id="attendance-summary"></div>
+            <div style="overflow-x:auto">
+            <table class="data-table" id="attendance-table">
+                <thead>
+                    <tr>
+                        <th>Tanggal</th>
+                        <th>Waktu</th>
+                        <th>Mata Pelajaran</th>
+                        <th>Guru</th>
+                        <th>Status</th>
+                        <th>Catatan</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+            </div>
+            <p id="attendance-empty" class="hint" style="display:none">Tidak ada data kehadiran untuk periode ini.</p>
+        </section>
+
+        <section id="section-observations" class="section" style="display:none">
+            <h3>Catatan Guru</h3>
+            <div class="filter-row" style="margin-bottom:12px">
+                <div class="field" style="margin-bottom:0">
+                    <label for="obs-date-start">Dari</label>
+                    <input id="obs-date-start" class="input" type="date" />
+                </div>
+                <div class="field" style="margin-bottom:0">
+                    <label for="obs-date-end">Sampai</label>
+                    <input id="obs-date-end" class="input" type="date" />
+                </div>
+                <button id="btn-obs-filter" class="btn btn-primary">Tampilkan</button>
+            </div>
+            <div id="observations-list"></div>
+            <p id="observations-empty" class="hint" style="display:none">Belum ada catatan guru untuk anak ini.</p>
+        </section>
+
+        <section id="section-cases" class="section" style="display:none">
+            <h3>Kasus Tentang Anak Saya</h3>
+            <div id="cases-list"></div>
+            <p id="cases-empty" class="hint" style="display:none">Tidak ada kasus yang dibagikan kepada Anda saat ini.</p>
+        </section>
+
+        <section id="section-forum" class="section" style="display:none">
+            <h3>Forum Kelas</h3>
+            <div id="forum-child-selector" style="margin-bottom:16px">
+                <select id="forum-child-select" class="input" style="max-width:320px">
+                    <option value="">Memuat data anak…</option>
+                </select>
+            </div>
+            <div id="forum-loading" class="hint">Pilih anak untuk melihat forum kelasnya.</div>
+            <div id="forum-posts-list"></div>
+            <div style="text-align:center">
+                <button id="btn-load-more-forum" class="btn btn-secondary" style="display:none;margin:16px auto">Muat lebih banyak</button>
+            </div>
+        </section>
+
+    </div>
+
+    <!-- Bottom nav (mobile only) -->
+    <nav id="parent-bottom-nav" class="bottom-nav" aria-label="Navigasi" style="display:none">
+        <div class="bottom-nav-inner">
+            <button class="tab-btn" data-tab="section-pkl">
+                <span class="nav-icon">🏭</span>
+                <span>PKL</span>
+            </button>
+            <button class="tab-btn" data-tab="section-schedule">
+                <span class="nav-icon">📅</span>
+                <span>Jadwal</span>
+            </button>
+            <button class="tab-btn" data-tab="section-attendance">
+                <span class="nav-icon">✅</span>
+                <span>Kehadiran</span>
+            </button>
+            <button class="tab-btn" data-tab="section-observations">
+                <span class="nav-icon">📝</span>
+                <span>Catatan</span>
+            </button>
+            <button class="tab-btn" data-tab="section-cases">
+                <span class="nav-icon">⚠️</span>
+                <span>Kasus</span>
+            </button>
+            <button class="tab-btn" data-tab="section-forum">
+                <span class="nav-icon">💬</span>
+                <span>Forum</span>
+            </button>
+        </div>
+    </nav>
+
+    <script type="module" src="js/portal.js"></script>
+<script>
+  /* SW DINONAKTIFKAN SEMENTARA u2014 lihat commit 8745e4c (fix v8 stuck cache).
+     Uncomment blok di bawah untuk reaktivasi service worker.
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('../sw.js', { updateViaCache: 'none' });
+    });
+  }
+  */
+</script>
+<script src="../shared/wa-float.js"></script>
+</body>
+</html>
