@@ -14,11 +14,8 @@ import {
     getAttendanceForSession,
     getMyStudents, searchStudents, insertObservation,
     getWaliKelasInfo, getWaliAttendanceSummary,
-    getProgram, fetchPklStudents, fetchNonPklStudents,
-    fetchDudiPartners, fetchPklAttendance, fetchDudiObservations,
+    getProgram,
     getAttendanceSummaryByStudents,
-    fetchAllPklStudents, fetchAllDudiPartners,
-    createPlacement, finishPlacement, bulkImportPkl,
 
     getSchoolStats, getKepsekMonitoring,
     getPendingAttendanceSessions, getPendingSessionsByTeacher, getPendingSessionsDetail,
