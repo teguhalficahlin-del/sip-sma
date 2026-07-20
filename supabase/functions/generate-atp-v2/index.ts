@@ -90,7 +90,7 @@ KONTEKS MENGAJAR GURU:
 - Tingkat kedalaman: ${profile.depth_level ?? "Menengah"}
 - Konteks lokal: ${[profile.local_city, profile.local_industry].filter(Boolean).join(", ") || "Tidak diisi"}` : "";
 
-  return `Anda adalah ahli kurikulum SMK Indonesia yang berpengalaman dalam Kurikulum Merdeka (SK BSKAP No. 8 Tahun 2022).
+  return `Anda adalah ahli kurikulum SMA Indonesia yang berpengalaman dalam Kurikulum Merdeka (SK BSKAP No. 8 Tahun 2022).
 Buat Alur Tujuan Pembelajaran (ATP) berdasarkan data berikut:
 
 MATA PELAJARAN: ${cp.subject_name}
@@ -199,8 +199,8 @@ serve(async (req: Request) => {
   if (!userRow) return errResponse(403, "Pengguna tidak ditemukan");
 
   const ALLOWED_ROLES = [
-    "GURU","WALI_KELAS","BK","KAPRODI","KEPSEK",
-    "WAKA_KURIKULUM","WAKA_KESISWAAN","WAKA_HUMAS","ADMINISTRATIVE",
+    "GURU","WALI_KELAS","BK","KEPSEK",
+    "WAKA_KURIKULUM","WAKA_KESISWAAN","ADMINISTRATIVE",
   ];
   if (!ALLOWED_ROLES.includes(userRow.role_type)) {
     return errResponse(403, "Akses ditolak — hanya staf sekolah");
