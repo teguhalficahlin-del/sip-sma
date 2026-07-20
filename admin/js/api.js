@@ -213,7 +213,7 @@ export async function purgeExpiredStudents(studentIds) {
 
 /**
  * Batalkan (void) sebuah observasi yang salah — soft-delete.
- * Baris tetap tersimpan untuk audit; disembunyikan dari siswa/ortu/DUDI
+ * Baris tetap tersimpan untuk audit; disembunyikan dari siswa/ortu
  * lewat RLS. Hanya ADMINISTRATIVE/KEPSEK yang diizinkan (RLS + di sini).
  * @param {string} observationId
  * @param {string} reason - alasan pembatalan (wajib, untuk jejak audit)

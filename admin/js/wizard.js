@@ -3,8 +3,8 @@
  *
  * Controller untuk admin/wizard.html — wizard onboarding 10 langkah.
  * Step 1–2 (Profil & Tahun Ajaran) form manual; Step 3 (Program) form
- * manual + impor; Step 4–9 berbasis impor Excel/CSV (Kelas, Guru, Siswa,
- * Orang Tua, DUDI, Jadwal); Step 10 ringkasan + tombol "Buka Dashboard".
+ * manual + impor; Step 4–8 berbasis impor Excel/CSV (Kelas, Guru, Siswa,
+ * Orang Tua, Jadwal); Step 10 ringkasan + tombol "Buka Dashboard".
  *
  * State disimpan di memory saja (tidak localStorage) — refresh
  * memulai ulang wizard, tetapi data yang sudah tersimpan di DB
@@ -46,7 +46,7 @@ function esc(s) {
 }
 
 const TOTAL_STEPS = 12;
-const SKIPPED_STEPS = new Set([8]);
+const SKIPPED_STEPS = new Set([3, 8]);
 
 function nextValidStep(current) {
     let next = current + 1;
@@ -62,7 +62,6 @@ function prevValidStep(current) {
 const STEP_NAMES = {
     1: 'Profil Sekolah',
     2: 'Tahun Ajaran',
-    3: 'Program Keahlian',
     4: 'Kelas & Rombel',
     5: 'Staf & Peran',
     6: 'Siswa',
@@ -202,7 +201,7 @@ async function renderStep1() {
         <div class="field">
             <label for="wz-school-name">Nama Sekolah</label>
             <input type="text" id="wz-school-name" class="input"
-                placeholder="contoh: SMK Negeri 1 Contoh" value="${escapeAttr(name)}" />
+                placeholder="contoh: SMA Negeri 1 Contoh" value="${escapeAttr(name)}" />
         </div>
         <div class="field">
             <label for="wz-address">Alamat</label>
@@ -353,6 +352,7 @@ function renderPlaceholder() {
 async function renderSummaryStep() {
     const rows = [];
     for (let i = 1; i <= TOTAL_STEPS; i++) {
+        if (SKIPPED_STEPS.has(i)) continue;
         const done = state.completedSteps.has(i);
         rows.push(`
             <tr>
@@ -364,6 +364,7 @@ async function renderSummaryStep() {
     }
     const incomplete = [];
     for (let i = 1; i < TOTAL_STEPS; i++) {
+        if (SKIPPED_STEPS.has(i)) continue;
         if (!state.completedSteps.has(i)) incomplete.push(STEP_NAMES[i]);
     }
     const warningHtml = incomplete.length > 0
@@ -1578,7 +1579,7 @@ async function saveCurrentStep() {
         case 3: return saveStep3();
         // Langkah 4–9 berbasis impor: data tersimpan langsung saat unggah,
         // dan langkah-langkah ini opsional (boleh dilewati / dilanjutkan dari dashboard).
-        case 4: case 5: case 6: case 7: case 8: case 9: case 10: case 11: return;
+        case 4: case 5: case 6: case 7: case 9: case 10: case 11: return;
         default: throw new Error('Langkah ini belum tersedia. Gunakan tombol Sebelumnya untuk kembali.');
     }
 }

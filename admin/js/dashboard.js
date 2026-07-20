@@ -68,6 +68,7 @@ const PANEL_RENDERERS = {
     export:             renderExportPanel,
     'activity-log':     renderActivityLogPanel,
     'forum-kelas':      renderForumKelasPanel,
+    share:              renderSharePortalPanel,
 };
 
 function navigateToPanel(panelId) {
@@ -1099,7 +1100,7 @@ async function renderStudentsPanel() {
             <strong>Akun Login Siswa</strong>
             <p class="hint" style="margin:6px 0">
                 ${noAccount > 0
-                    ? `<strong>${noAccount}</strong> siswa belum punya akun login. Siswa masuk ke Portal Siswa pakai <strong>NIS</strong>, password awal <code>{NIS}!SMK</code>.`
+                    ? `<strong>${noAccount}</strong> siswa belum punya akun login. Siswa masuk ke Portal Siswa pakai <strong>NIS</strong>, password awal <code>{NIS}!SMA</code>.`
                     : '✓ Semua siswa sudah punya akun login.'}
             </p>
             ${noAccount > 0
@@ -1545,7 +1546,7 @@ async function renderAlumniPanel() {
                 });
 
                 // Hapus semua sekaligus
-                resultDiv.getElementById?.('purge-all-btn') ?? resultDiv.querySelector('#purge-all-btn')?.addEventListener('click', async () => {
+                document.getElementById('purge-all-btn')?.addEventListener('click', async () => {
                     const n = candidates.length;
                     const confirmText = `HAPUS PERMANEN ${n} SISWA\n\nSeluruh data (absensi, observasi, kasus, akun) akan dihapus.\nTindakan ini TIDAK DAPAT dibatalkan.\n\nKetik "HAPUS" untuk konfirmasi:`;
                     const input = prompt(confirmText);
@@ -2137,7 +2138,7 @@ async function renderExportPanel() {
 
     document.getElementById('dashboard-school-name').textContent = schoolName;
     document.getElementById('dashboard-user-name').textContent = `Masuk sebagai ${userRow.full_name}`;
-    // Delegasi klik Reset PW untuk semua panel non-staf (siswa, ortu, dudi, stakeholder)
+    // Delegasi klik Reset PW untuk semua panel non-staf (siswa, ortu, stakeholder)
     panelContent.addEventListener('click', async e => {
         const btn = e.target.closest('.user-reset-pw-btn');
         if (!btn) return;
