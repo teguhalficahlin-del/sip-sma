@@ -2072,18 +2072,27 @@ async function initWakaHumasTab() {
         const ortuUrl        = portalUrl('parent/index.html');
         const stakeholderUrl = portalUrl('stakeholder/index.html');
 
-        const [siswaRes, alumniRes, ortuRes, stakeRes, monData] = await Promise.allSettled([
+        const [siswaRes, alumniRes, ortuRes, stakeRes, monData, forumRes] = await Promise.allSettled([
             supabase.from('students').select('student_id', { count: 'exact', head: true }).eq('student_status', 'AKTIF'),
             supabase.from('students').select('student_id', { count: 'exact', head: true }).eq('student_status', 'LULUS'),
             supabase.from('users').select('user_id', { count: 'exact', head: true }).eq('role_type', 'ORTU').eq('is_active', true),
             supabase.from('users').select('user_id', { count: 'exact', head: true }).eq('role_type', 'STAKEHOLDER').eq('is_active', true),
             getAttendanceFillRate(null, null),
+            supabase.from('forum_posts')
+                .select('post_id, title, created_at, author:users!forum_posts_author_user_id_fkey(full_name)')
+                .eq('school_id', currentUser.school_id)
+                .eq('is_withdrawn', false)
+                .in('visibility', ['ORTU_SAJA', 'SISWA_DAN_ORTU', 'ORTU_SISWA_SUBJEK', 'ORTU_SISWA_KELAS'])
+                .order('created_at', { ascending: false })
+                .limit(5),
         ]);
 
         const siswaCount = siswaRes.status  === 'fulfilled' ? (siswaRes.value.count  ?? 0) : '—';
         const alumniCount= alumniRes.status === 'fulfilled' ? (alumniRes.value.count ?? 0) : '—';
         const ortuCount  = ortuRes.status   === 'fulfilled' ? (ortuRes.value.count   ?? 0) : '—';
         const stakeCount = stakeRes.status  === 'fulfilled' ? (stakeRes.value.count  ?? 0) : '—';
+
+        const forumPosts = forumRes.status === 'fulfilled' ? (forumRes.value.data ?? []) : [];
 
         const att      = monData.status === 'fulfilled' ? (monData.value ?? {}) : {};
         const total    = att.total ?? 0;
@@ -2142,6 +2151,23 @@ async function initWakaHumasTab() {
                     ${copyBtn(stakeholderUrl, 'Salin Link Stakeholder')}
                 </div>
                 <p id="humas-copy-feedback" style="display:none;margin-top:8px;font-size:13px;color:var(--color-success,#22c55e)">✓ Tersalin ke clipboard!</p>
+            </div>
+
+            <div class="section-card">
+                <h3 style="margin:0 0 12px">Forum Pengumuman Terbaru</h3>
+                ${forumPosts.length === 0
+                    ? '<p style="font-size:13px;color:var(--color-text-muted)">Belum ada pengumuman.</p>'
+                    : `<ul style="list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px">
+                        ${forumPosts.map(p => {
+                            const tgl = new Date(p.created_at).toLocaleDateString('id-ID', { day:'numeric', month:'short', year:'numeric' });
+                            const nama = p.author?.full_name ?? '—';
+                            return `<li style="border-bottom:1px solid var(--color-border);padding-bottom:8px">
+                                <div style="font-size:14px;font-weight:500">${esc(p.title)}</div>
+                                <div style="font-size:12px;color:var(--color-text-muted);margin-top:2px">${esc(tgl)} · ${esc(nama)}</div>
+                            </li>`;
+                        }).join('')}
+                    </ul>`
+                }
             </div>
         `;
 
