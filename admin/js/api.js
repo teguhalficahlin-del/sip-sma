@@ -983,6 +983,7 @@ export async function deactivateStaff(user_id) {
             is_kepsek:          false,
             is_waka_kurikulum:  false,
             is_waka_kesiswaan:  false,
+            is_waka_humas:      false,
             wali_kelas_class_id: null,
         })
         .eq('user_id', user_id);
